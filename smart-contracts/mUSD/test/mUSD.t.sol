@@ -73,8 +73,8 @@ contract TestMUSD is Test {
         uint256 healthFactor = token.getHealthFactor(user);
         // Collateral value = 10 * 4000e18 = 40000e18
         // Debt = 40000e18 * 5000 / 10000 = 20000e18
-        // Health factor = (40000e18 * 10000) / 20000e18 = 20000
-        assertEq(healthFactor, 20_000, "health factor should be 20x");
+        // Health factor = (40000e18 * 100) / 20000e18 = 200
+        assertEq(healthFactor, 200, "health factor should be 200%");
     }
 
     function testPositionNotLiquidatableWhenHealthy() public {
@@ -123,6 +123,9 @@ contract TestMUSD is Test {
         // Liquidator needs mUSD to burn the debt
         token.mint(liquidator, debtBefore);
 
+        // Record liquidator's initial collateral balance
+        uint256 liquidatorCollateralBefore = collateral.balanceOf(liquidator);
+
         // Liquidate the position
         vm.prank(liquidator);
         token.liquidate(user);
@@ -131,8 +134,13 @@ contract TestMUSD is Test {
         assertEq(token.collateralBalances(user), 0, "collateral should be seized");
         assertEq(token.debtBalances(user), 0, "debt should be burned");
 
-        // Verify collateral is held by mUSD contract
-        assertEq(collateral.balanceOf(address(token)), collateralToLock, "mUSD should hold seized collateral");
+        // Verify collateral went to liquidator, not mUSD contract
+        assertEq(
+            collateral.balanceOf(liquidator),
+            liquidatorCollateralBefore + collateralToLock,
+            "liquidator should receive seized collateral"
+        );
+        assertEq(collateral.balanceOf(address(token)), 0, "mUSD should not hold collateral after liquidation");
     }
 
     function testLiquidationFailsOnHealthyPosition() public {

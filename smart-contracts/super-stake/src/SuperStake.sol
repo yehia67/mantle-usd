@@ -23,7 +23,8 @@ interface ISwapper {
 }
 
 /// @title SuperStake
-/// @notice Leverage protocol: lock mETH, mint mUSD, swap to mETH, repeat. All collateral held in contract.
+/// @notice Leverage helper: provides swap services for mETH leverage loops.
+/// @dev Users own positions directly in mUSD. SuperStake only facilitates swaps between mUSD and mETH.
 contract SuperStake is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeERC20 for IMUSD;
@@ -144,6 +145,32 @@ contract SuperStake is Ownable, ReentrancyGuard {
         emit PositionClosed(msg.sender, ethAmount, debtToBurn);
     }
 
+    function swapMusdForMeth(uint256 musdAmount, bytes calldata swapData)
+        external
+        nonReentrant
+        returns (uint256 ethReceived)
+    {
+        require(musdAmount > 0, "amount zero");
+        require(address(swapper) != address(0), "swapper unset");
+
+        mUsd.safeTransferFrom(msg.sender, address(this), musdAmount);
+        ethReceived = _swapMusdToEth(musdAmount, swapData);
+        mEth.safeTransfer(msg.sender, ethReceived);
+    }
+
+    function swapMethForMusd(uint256 ethAmount, bytes calldata swapData)
+        external
+        nonReentrant
+        returns (uint256 musdReceived)
+    {
+        require(ethAmount > 0, "amount zero");
+        require(address(swapper) != address(0), "swapper unset");
+
+        mEth.safeTransferFrom(msg.sender, address(this), ethAmount);
+        musdReceived = _swapMethToMusd(ethAmount, swapData);
+        mUsd.safeTransfer(msg.sender, musdReceived);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               VIEW HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -152,38 +179,13 @@ contract SuperStake is Ownable, ReentrancyGuard {
         return positions[account];
     }
 
-    function previewDebtForCollateral(uint256 collateralAmount) external view returns (uint256) {
-        return _calculateDebtForCollateral(collateralAmount);
+    function getUserPosition(address account) external view returns (uint256 collateral, uint256 debt) {
+        collateral = mUsd.collateralBalances(account);
+        debt = mUsd.debtBalances(account);
     }
 
-    function previewWithdrawal(address account, uint256 ethAmount) external view returns (uint256 estimatedDebtToBurn, uint256 iterations) {
-        require(ethAmount > 0, "amount zero");
-        Position memory pos = positions[account];
-        require(ethAmount <= pos.collateralLocked, "insufficient collateral");
-        
-        uint256 totalDebt = 0;
-        uint256 remaining = ethAmount;
-        uint256 currentDebt = mUsd.debtBalances(address(this));
-        
-        for (uint256 i = 0; i < maxLeverageLoops + 1 && remaining > 0; ++i) {
-            if (currentDebt == 0) break;
-            
-            uint256 unlockAmount = remaining;
-            uint256 requiredDebt = _calculateDebtForCollateral(unlockAmount);
-            
-            if (requiredDebt > currentDebt) {
-                unlockAmount = (currentDebt * PRICE_SCALE * BPS_DENOMINATOR) / (mUsd.collateralPriceUsd() * mUsd.mintPercentageBps());
-                if (unlockAmount == 0) break;
-                requiredDebt = currentDebt;
-            }
-            
-            totalDebt += requiredDebt;
-            remaining -= unlockAmount;
-            currentDebt -= requiredDebt;
-            iterations++;
-        }
-        
-        estimatedDebtToBurn = totalDebt;
+    function previewDebtForCollateral(uint256 collateralAmount) external view returns (uint256) {
+        return _calculateDebtForCollateral(collateralAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

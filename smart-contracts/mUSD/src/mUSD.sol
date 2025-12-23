@@ -132,10 +132,6 @@ contract mUSD is ERC20, Ownable {
         emit PositionLiquidated(account, msg.sender, collateral, debt);
     }
 
-    function withdrawLiquidatedCollateral(uint256 amount) external onlyOwner {
-        collateralAsset.safeTransfer(msg.sender, amount);
-    }
-
     function getHealthFactor(address account) external view returns (uint256) {
         uint256 debt = debtBalances[account];
         if (debt == 0) return type(uint256).max;
