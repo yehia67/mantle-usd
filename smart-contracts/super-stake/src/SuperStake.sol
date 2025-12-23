@@ -23,14 +23,13 @@ interface ISwapper {
 }
 
 /// @title SuperStake
-/// @notice Automates leverage loops by locking mETH in mUSD, minting mUSD debt, swapping to mETH, and repeating.
+/// @notice Leverage protocol: lock mETH, mint mUSD, swap to mETH, repeat. All collateral held in contract.
 contract SuperStake is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeERC20 for IMUSD;
 
     uint256 private constant BPS_DENOMINATOR = 10_000;
     uint256 private constant PRICE_SCALE = 1e18;
-    uint256 private constant MAX_LEVERAGE_RATIO = 5 * PRICE_SCALE; // 5x max leverage
 
     struct Position {
         uint256 collateralLocked;
@@ -44,11 +43,11 @@ contract SuperStake is Ownable, ReentrancyGuard {
 
     mapping(address => Position) private positions;
 
-    event TokensConfigured(address mUsd, address mEth);
-    event SwapperUpdated(address swapper);
+    event TokensConfigured(address indexed mUsd, address indexed mEth);
+    event SwapperUpdated(address indexed swapper);
     event MaxLoopsUpdated(uint8 maxLoops);
-    event PositionLeveraged(address indexed account, uint256 collateralAdded, uint256 debtMinted, uint8 loopsExecuted);
-    event DebtRepaid(address indexed account, uint256 debtBurned, uint256 collateralReleased);
+    event PositionOpened(address indexed user, uint256 collateralLocked, uint256 totalDebtMinted, uint8 loopsExecuted);
+    event PositionClosed(address indexed user, uint256 collateralReleased, uint256 debtBurned);
 
     constructor() Ownable(msg.sender) {}
 
@@ -78,62 +77,71 @@ contract SuperStake is Ownable, ReentrancyGuard {
                               USER FLOWS
     //////////////////////////////////////////////////////////////*/
 
-    function depositWithMETH(uint256 amount, uint8 loops, uint256 minSwapOut, bytes calldata swapData)
+    function deposit(uint256 ethAmount, uint8 loops, bytes calldata swapData)
         external
         nonReentrant
-        returns (uint256 collateralAdded, uint256 debtMinted)
+        returns (uint256 collateralLocked, uint256 totalDebtMinted)
     {
-        _validateConfig(loops);
-        require(amount > 0, "amount zero");
+        require(ethAmount > 0, "amount zero");
+        require(loops > 0 && loops <= maxLeverageLoops, "loops must be between 1 and max");
+        require(address(swapper) != address(0), "swapper unset");
+        require(address(mUsd) != address(0) && address(mEth) != address(0), "tokens unset");
 
-        mEth.safeTransferFrom(msg.sender, address(this), amount);
-        (collateralAdded, debtMinted) = _leverAndLock(msg.sender, amount, loops, minSwapOut, swapData);
-    }
+        mEth.safeTransferFrom(msg.sender, address(this), ethAmount);
 
-    function depositWithMUSD(uint256 amount, uint8 loops, uint256 minSwapOut, bytes calldata swapData)
-        external
-        nonReentrant
-        returns (uint256 collateralAdded, uint256 debtMinted)
-    {
-        _validateConfig(loops);
-        require(amount > 0, "amount zero");
+        collateralLocked = ethAmount;
+        totalDebtMinted = _lockAndMint(ethAmount);
 
-        mUsd.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 baseEth = _swap(address(mUsd), address(mEth), amount, minSwapOut, swapData);
-        (collateralAdded, debtMinted) = _leverAndLock(msg.sender, baseEth, loops, minSwapOut, swapData);
-    }
-
-    function repayAndUnlock(uint256 collateralAmount, uint256 maxRepayAmount)
-        external
-        nonReentrant
-        returns (uint256 burnedDebt)
-    {
-        require(collateralAmount > 0, "amount zero");
-        Position storage position = positions[msg.sender];
-        require(collateralAmount <= position.collateralLocked, "collateral exceeded");
-        require(maxRepayAmount > 0, "max repay zero");
-
-        uint256 previewDebt = _previewDebt(collateralAmount);
-        require(maxRepayAmount >= previewDebt, "repay insufficient");
-
-        mUsd.safeTransferFrom(msg.sender, address(this), maxRepayAmount);
-
-        uint256 debtBefore = mUsd.debtBalances(address(this));
-        mUsd.unlockCollateral(collateralAmount);
-        uint256 debtAfter = mUsd.debtBalances(address(this));
-
-        burnedDebt = debtBefore - debtAfter;
-        require(burnedDebt > 0, "burn zero");
-
-        if (maxRepayAmount > burnedDebt) {
-            mUsd.safeTransfer(msg.sender, maxRepayAmount - burnedDebt);
+        uint256 currentDebt = totalDebtMinted;
+        for (uint8 i = 0; i < loops; ++i) {
+            uint256 ethReceived = _swapMusdToEth(currentDebt, swapData);
+            collateralLocked += ethReceived;
+            
+            currentDebt = _lockAndMint(ethReceived);
+            totalDebtMinted += currentDebt;
         }
 
-        position.collateralLocked -= collateralAmount;
-        position.debtMUSD -= burnedDebt;
+        uint256 remainingMusd = mUsd.balanceOf(address(this));
+        if (remainingMusd > 0) {
+            uint256 finalEthReceived = _swapMusdToEth(remainingMusd, swapData);
+            collateralLocked += finalEthReceived;
+            uint256 finalDebt = _lockAndMint(finalEthReceived);
+            totalDebtMinted += finalDebt;
+        }
 
-        mEth.safeTransfer(msg.sender, collateralAmount);
-        emit DebtRepaid(msg.sender, burnedDebt, collateralAmount);
+        Position storage position = positions[msg.sender];
+        position.collateralLocked += collateralLocked;
+        position.debtMUSD += totalDebtMinted;
+
+        emit PositionOpened(msg.sender, collateralLocked, totalDebtMinted, loops);
+    }
+
+    function withdraw(uint256 ethAmount, bytes calldata swapData)
+        external
+        nonReentrant
+        returns (uint256 musdReturned)
+    {
+        require(ethAmount > 0, "amount zero");
+        Position storage position = positions[msg.sender];
+        require(ethAmount <= position.collateralLocked, "insufficient collateral");
+        require(address(swapper) != address(0), "swapper unset");
+
+        uint256 debtToBurn = _calculateDebtForCollateral(ethAmount);
+        require(debtToBurn <= position.debtMUSD, "debt calculation error");
+        
+        mUsd.safeTransferFrom(msg.sender, address(this), debtToBurn);
+        
+        mUsd.unlockCollateral(ethAmount);
+        
+        uint256 musdReceived = _swapMethToMusd(ethAmount, swapData);
+        
+        position.collateralLocked -= ethAmount;
+        position.debtMUSD -= debtToBurn;
+        
+        musdReturned = musdReceived;
+        mUsd.safeTransfer(msg.sender, musdReturned);
+        
+        emit PositionClosed(msg.sender, ethAmount, debtToBurn);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -145,76 +153,75 @@ contract SuperStake is Ownable, ReentrancyGuard {
     }
 
     function previewDebtForCollateral(uint256 collateralAmount) external view returns (uint256) {
-        return _previewDebt(collateralAmount);
+        return _calculateDebtForCollateral(collateralAmount);
+    }
+
+    function previewWithdrawal(address account, uint256 ethAmount) external view returns (uint256 estimatedDebtToBurn, uint256 iterations) {
+        require(ethAmount > 0, "amount zero");
+        Position memory pos = positions[account];
+        require(ethAmount <= pos.collateralLocked, "insufficient collateral");
+        
+        uint256 totalDebt = 0;
+        uint256 remaining = ethAmount;
+        uint256 currentDebt = mUsd.debtBalances(address(this));
+        
+        for (uint256 i = 0; i < maxLeverageLoops + 1 && remaining > 0; ++i) {
+            if (currentDebt == 0) break;
+            
+            uint256 unlockAmount = remaining;
+            uint256 requiredDebt = _calculateDebtForCollateral(unlockAmount);
+            
+            if (requiredDebt > currentDebt) {
+                unlockAmount = (currentDebt * PRICE_SCALE * BPS_DENOMINATOR) / (mUsd.collateralPriceUsd() * mUsd.mintPercentageBps());
+                if (unlockAmount == 0) break;
+                requiredDebt = currentDebt;
+            }
+            
+            totalDebt += requiredDebt;
+            remaining -= unlockAmount;
+            currentDebt -= requiredDebt;
+            iterations++;
+        }
+        
+        estimatedDebtToBurn = totalDebt;
     }
 
     /*//////////////////////////////////////////////////////////////
                               INTERNALS
     //////////////////////////////////////////////////////////////*/
 
-    function _leverAndLock(address account, uint256 baseCollateral, uint8 loops, uint256 minSwapOut, bytes calldata swapData)
-        internal
-        returns (uint256 totalCollateralLocked, uint256 totalDebtMinted)
-    {
-        require(address(swapper) != address(0), "swapper unset");
-        require(address(mUsd) != address(0) && address(mEth) != address(0), "tokens unset");
-        require(loops > 0, "loops zero");
+    function _lockAndMint(uint256 ethAmount) internal returns (uint256 totalDebtMinted) {
+        require(ethAmount > 0, "amount zero");
 
-        uint256 collateralPortion = baseCollateral;
-
-        for (uint8 i = 0; i < loops; ++i) {
-            uint256 minted = _lockCollateral(collateralPortion);
-            totalCollateralLocked += collateralPortion;
-            totalDebtMinted += minted;
-
-            // Swap minted mUSD to mETH for next iteration
-            collateralPortion = _swap(address(mUsd), address(mEth), minted, minSwapOut, swapData);
-            require(collateralPortion > 0, "swap zero");
-        }
-
-        Position storage position = positions[account];
-        position.collateralLocked += totalCollateralLocked;
-        position.debtMUSD += totalDebtMinted;
-
-        emit PositionLeveraged(account, totalCollateralLocked, totalDebtMinted, loops);
-    }
-
-    function _lockCollateral(uint256 amount) internal returns (uint256 mintedAmount) {
-        require(amount > 0, "amount zero");
-
-        IERC20 collateralToken = mUsd.collateralAsset();
-        require(address(collateralToken) == address(mEth), "collateral mismatch");
-
-        mEth.safeIncreaseAllowance(address(mUsd), amount);
-
+        mEth.approve(address(mUsd), ethAmount);
         uint256 debtBefore = mUsd.debtBalances(address(this));
-        mUsd.lockCollateral(amount);
+        mUsd.lockCollateral(ethAmount);
         uint256 debtAfter = mUsd.debtBalances(address(this));
 
-        mintedAmount = debtAfter - debtBefore;
-        mEth.forceApprove(address(mUsd), 0);
-        require(mintedAmount > 0, "mint zero");
+        totalDebtMinted = debtAfter - debtBefore;
+        require(totalDebtMinted > 0, "mint zero");
     }
 
-    function _swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        internal
-        returns (uint256 amountOut)
-    {
-        if (amountIn == 0) return 0;
-        IERC20(tokenIn).safeIncreaseAllowance(address(swapper), amountIn);
-        amountOut = swapper.swap(tokenIn, tokenOut, amountIn, minAmountOut, data);
-        IERC20(tokenIn).forceApprove(address(swapper), 0);
-        require(amountOut >= minAmountOut, "slippage");
+    function _swapMusdToEth(uint256 musdAmount, bytes calldata swapData) internal returns (uint256 ethReceived) {
+        require(musdAmount > 0, "amount zero");
+
+        mUsd.approve(address(swapper), musdAmount);
+        ethReceived = swapper.swap(address(mUsd), address(mEth), musdAmount, 0, swapData);
+        require(ethReceived > 0, "swap zero");
     }
 
-    function _previewDebt(uint256 collateralAmount) internal view returns (uint256) {
+    function _swapMethToMusd(uint256 ethAmount, bytes calldata swapData) internal returns (uint256 musdReceived) {
+        require(ethAmount > 0, "amount zero");
+
+        mEth.approve(address(swapper), ethAmount);
+        musdReceived = swapper.swap(address(mEth), address(mUsd), ethAmount, 0, swapData);
+        require(musdReceived > 0, "swap zero");
+    }
+
+    function _calculateDebtForCollateral(uint256 collateralAmount) internal view returns (uint256) {
         if (collateralAmount == 0) return 0;
         uint256 price = mUsd.collateralPriceUsd();
         uint256 percentage = mUsd.mintPercentageBps();
         return ((collateralAmount * price) / PRICE_SCALE) * percentage / BPS_DENOMINATOR;
-    }
-
-    function _validateConfig(uint8 loops) internal view {
-        require(loops <= maxLeverageLoops, "loops exceed limit");
     }
 }

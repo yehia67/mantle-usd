@@ -88,61 +88,113 @@ contract TestSuperStake is Test {
         stake.setSwapper(address(swapper));
 
         mEth.mint(USER, 100 ether);
-        mEth.mint(address(swapper), 100_000 ether);
-        mUsd.mint(address(swapper), 100_000_000 ether);
+        mEth.mint(address(swapper), 1_000_000_000_000 ether);
+        mUsd.mint(address(swapper), 1_000_000_000_000 ether);
     }
 
-    function testDepositWithMETHSingleLoop() public {
+    function testDepositMinLeverage() public {
         uint256 depositAmount = 10 ether;
 
         vm.startPrank(USER);
         mEth.approve(address(stake), depositAmount);
-        (uint256 collateralLocked, uint256 debtMinted) = stake.depositWithMETH(depositAmount, 1, 0, "");
+        (uint256 collateralLocked, uint256 debtMinted) = stake.deposit(depositAmount, 1, "");
         vm.stopPrank();
 
-        assertEq(collateralLocked, depositAmount, "collateral locked");
-        assertEq(debtMinted, _expectedDebt(depositAmount), "debt minted");
+        assertTrue(collateralLocked > depositAmount, "collateral increased with 1 loop");
+        assertTrue(debtMinted > _expectedDebt(depositAmount), "debt increased with 1 loop");
 
         SuperStake.Position memory pos = stake.getPosition(USER);
-        assertEq(pos.collateralLocked, depositAmount, "position collateral");
-        assertEq(pos.debtMUSD, _expectedDebt(depositAmount), "position debt");
+        assertEq(pos.collateralLocked, collateralLocked, "position collateral");
+        assertEq(pos.debtMUSD, debtMinted, "position debt");
     }
 
     function testDepositWithLeverage() public {
+        uint256 depositAmount = 1 ether;
+
+        vm.startPrank(USER);
+        mEth.approve(address(stake), type(uint256).max);
+        (uint256 collateralLocked, uint256 debtMinted) = stake.deposit(depositAmount, 2, "");
+        vm.stopPrank();
+
+        SuperStake.Position memory pos = stake.getPosition(USER);
+
+        uint256 singleLoopDebt = _expectedDebt(depositAmount);
+        assertTrue(pos.collateralLocked > depositAmount, "leverage increased collateral");
+        assertTrue(pos.debtMUSD > singleLoopDebt, "leverage increased debt");
+    }
+
+    function testExceedsMaxLoopsReverts() public {
         uint256 depositAmount = 5 ether;
 
         vm.startPrank(USER);
         mEth.approve(address(stake), type(uint256).max);
-        stake.depositWithMETH(depositAmount, 1, 0, "");
+        vm.expectRevert("loops must be between 1 and max");
+        stake.deposit(depositAmount, 4, "");
         vm.stopPrank();
-
-        SuperStake.Position memory pos = stake.getPosition(USER);
-        // Verify position was created with correct collateral and debt
-        assertEq(pos.collateralLocked, depositAmount, "collateral locked");
-        assertEq(pos.debtMUSD, _expectedDebt(depositAmount), "debt minted");
     }
 
-    function testRepayAndUnlock() public {
+    function testZeroLoopsReverts() public {
+        uint256 depositAmount = 5 ether;
+
+        vm.startPrank(USER);
+        mEth.approve(address(stake), type(uint256).max);
+        vm.expectRevert("loops must be between 1 and max");
+        stake.deposit(depositAmount, 0, "");
+        vm.stopPrank();
+    }
+
+    function testWithdraw() public {
         uint256 depositAmount = 5 ether;
 
         vm.startPrank(USER);
         mEth.approve(address(stake), depositAmount);
-        stake.depositWithMETH(depositAmount, 1, 0, "");
+        stake.deposit(depositAmount, 1, "");
         vm.stopPrank();
 
         SuperStake.Position memory pos = stake.getPosition(USER);
-        uint256 debtToRepay = pos.debtMUSD;
+        uint256 debtToBurn = pos.debtMUSD;
 
-        mUsd.mint(USER, debtToRepay);
+        mUsd.mint(USER, debtToBurn);
 
         vm.startPrank(USER);
-        mUsd.approve(address(stake), debtToRepay);
-        stake.repayAndUnlock(pos.collateralLocked, debtToRepay);
+        mUsd.approve(address(stake), debtToBurn);
+        uint256 musdReturned = stake.withdraw(pos.collateralLocked, "");
         vm.stopPrank();
 
         pos = stake.getPosition(USER);
         assertEq(pos.collateralLocked, 0, "collateral cleared");
         assertEq(pos.debtMUSD, 0, "debt cleared");
+        assertTrue(musdReturned > 0, "mUSD returned");
+        assertTrue(musdReturned >= depositAmount, "at least initial deposit returned");
+    }
+
+    function testWithdrawLeveraged() public {
+        uint256 depositAmount = 1 ether;
+
+        vm.startPrank(USER);
+        mEth.approve(address(stake), type(uint256).max);
+        stake.deposit(depositAmount, 2, "");
+        vm.stopPrank();
+
+        SuperStake.Position memory pos = stake.getPosition(USER);
+        uint256 initialCollateral = pos.collateralLocked;
+        uint256 initialDebt = pos.debtMUSD;
+
+        assertTrue(initialCollateral > depositAmount, "leverage increased collateral");
+        assertTrue(initialDebt > _expectedDebt(depositAmount), "leverage increased debt");
+
+        mUsd.mint(USER, initialDebt);
+
+        vm.startPrank(USER);
+        mUsd.approve(address(stake), initialDebt);
+        uint256 musdReturned = stake.withdraw(pos.collateralLocked, "");
+        vm.stopPrank();
+
+        pos = stake.getPosition(USER);
+        assertEq(pos.collateralLocked, 0, "collateral cleared");
+        assertEq(pos.debtMUSD, 0, "debt cleared");
+        assertTrue(musdReturned > 0, "mUSD returned");
+        assertTrue(musdReturned >= depositAmount, "at least initial deposit returned");
     }
 
     function _expectedDebt(uint256 collateral) internal pure returns (uint256) {

@@ -19,6 +19,7 @@ contract mUSD is ERC20, Ownable {
 
     mapping(address => uint256) public collateralBalances;
     mapping(address => uint256) public debtBalances;
+    mapping(address => uint256) public debtPerCollateral;
 
     event CollateralAssetUpdated(address indexed asset);
     event MintPercentageUpdated(uint256 bps);
@@ -77,6 +78,7 @@ contract mUSD is ERC20, Ownable {
 
         collateralBalances[msg.sender] += amount;
         debtBalances[msg.sender] += mintAmount;
+        debtPerCollateral[msg.sender] = (debtBalances[msg.sender] * PRICE_SCALE) / collateralBalances[msg.sender];
 
         _mint(msg.sender, mintAmount);
 
@@ -87,19 +89,21 @@ contract mUSD is ERC20, Ownable {
         require(amount > 0, "amount zero");
         require(collateralBalances[msg.sender] >= amount, "insufficient collateral");
 
-        uint256 collateralValueUsd = (amount * collateralPriceUsd) / PRICE_SCALE;
-        uint256 burnAmount = (collateralValueUsd * mintPercentageBps) / BPS_DENOMINATOR;
+        uint256 burnAmount = (amount * debtPerCollateral[msg.sender]) / PRICE_SCALE;
         require(burnAmount > 0, "burn zero");
         require(debtBalances[msg.sender] >= burnAmount, "insufficient debt");
 
         collateralBalances[msg.sender] -= amount;
         debtBalances[msg.sender] -= burnAmount;
 
-        uint256 remainingCollateralValue = (collateralBalances[msg.sender] * collateralPriceUsd) / PRICE_SCALE;
-        uint256 remainingDebt = debtBalances[msg.sender];
-        if (remainingDebt > 0) {
-            uint256 healthFactor = (remainingCollateralValue * BPS_DENOMINATOR) / remainingDebt;
+        if (collateralBalances[msg.sender] > 0) {
+            debtPerCollateral[msg.sender] = (debtBalances[msg.sender] * PRICE_SCALE) / collateralBalances[msg.sender];
+            
+            uint256 collateralValueUsd = (collateralBalances[msg.sender] * collateralPriceUsd) / PRICE_SCALE;
+            uint256 healthFactor = (collateralValueUsd * BPS_DENOMINATOR) / debtBalances[msg.sender];
             require(healthFactor >= minHealthFactor, "health factor too low");
+        } else {
+            debtPerCollateral[msg.sender] = 0;
         }
 
         _burn(msg.sender, burnAmount);
@@ -122,8 +126,6 @@ contract mUSD is ERC20, Ownable {
 
         collateralBalances[account] = 0;
         debtBalances[account] = 0;
-
-        _burn(msg.sender, debt);
 
         emit PositionLiquidated(account, collateral, debt);
     }
