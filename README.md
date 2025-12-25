@@ -254,6 +254,16 @@ Acts as the **coordination layer**, not a computation layer.
 
 The frontend is the **single user entry point**.
 
+```mermaid
+flowchart LR
+    User --> Frontend
+    Frontend --> mUSD
+    Frontend --> SuperStake
+    Frontend --> RwaPools
+    Frontend --> Backend
+    Backend --> Proofer
+```
+
 ### Responsibilities
 
 * Wallet connection
