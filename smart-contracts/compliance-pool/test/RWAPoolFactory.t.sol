@@ -1,33 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "../src/RWAPoolFactory.sol";
-import "../src/RWAPool.sol";
-
-contract MockERC20 {
-    string public name;
-    string public symbol;
-    uint8 public decimals = 18;
-
-    constructor(string memory _name, string memory _symbol) {
-        name = _name;
-        symbol = _symbol;
-    }
-}
-
-contract MockVerifier {
-    function verify(bytes calldata, bytes32) external pure returns (bool) {
-        return true;
-    }
-}
+import {Test} from "forge-std/Test.sol";
+import {RWAPoolFactory} from "../src/RWAPoolFactory.sol";
+import {RWAPool} from "../src/RWAPool.sol";
+import {MockERC20} from "./helpers/MockERC20.sol";
 
 contract RWAPoolFactoryTest is Test {
     RWAPoolFactory public factory;
     MockERC20 public mUSD;
     MockERC20 public rwaToken1;
     MockERC20 public rwaToken2;
-    MockVerifier public verifier;
+    address public verifier;
     bytes32 public imageId;
 
     address public constant DEPLOYER = address(0x1);
@@ -37,7 +21,7 @@ contract RWAPoolFactoryTest is Test {
         mUSD = new MockERC20("Mantle USD", "mUSD");
         rwaToken1 = new MockERC20("RWA Token 1", "RWA1");
         rwaToken2 = new MockERC20("RWA Token 2", "RWA2");
-        verifier = new MockVerifier();
+        verifier = address(0x123);
         imageId = keccak256("test-image-id");
     }
 

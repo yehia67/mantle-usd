@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {IRiscZeroVerifier} from "risc0-ethereum/contracts/src/IRiscZeroVerifier.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 /// @title RWAPool
 /// @notice AMM pool for mUSD ↔ RWA token swaps with RISC Zero proof verification
@@ -18,6 +20,9 @@ contract RWAPool {
 
     uint256 public reserveMUSD;
     uint256 public reserveRWA;
+    uint256 public totalLiquidity;
+    
+    mapping(address => uint256) public liquidityBalances;
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -42,6 +47,9 @@ contract RWAPool {
     error ProofVerificationFailed();
     error InsufficientLiquidity();
     error InsufficientOutput();
+    error InvalidToken();
+    error ZeroAmount();
+    error InvalidRatio();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -73,19 +81,95 @@ contract RWAPool {
         address tokenOut,
         uint256 amountIn,
         uint256 minAmountOut,
-        bytes calldata proof
+        bytes calldata seal,
+        bytes32 imageId,
+        bytes32 journalDigest
     ) external returns (uint256 amountOut) {
-        revert("Not implemented");
+        if (amountIn == 0) revert ZeroAmount();
+        
+        if (imageId != allowedImageId) revert InvalidImageId();
+        
+        IRiscZeroVerifier(verifier).verify(seal, imageId, journalDigest);
+        
+        uint256 reserveIn;
+        uint256 reserveOut;
+        IERC20 tokenInContract;
+        IERC20 tokenOutContract;
+        
+        if (tokenIn == address(mUSD) && tokenOut == address(rwaToken)) {
+            reserveIn = reserveMUSD;
+            reserveOut = reserveRWA;
+            tokenInContract = mUSD;
+            tokenOutContract = rwaToken;
+        } else if (tokenIn == address(rwaToken) && tokenOut == address(mUSD)) {
+            reserveIn = reserveRWA;
+            reserveOut = reserveMUSD;
+            tokenInContract = rwaToken;
+            tokenOutContract = mUSD;
+        } else {
+            revert InvalidToken();
+        }
+        
+        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+        if (amountOut < minAmountOut) revert InsufficientOutput();
+        if (amountOut > reserveOut) revert InsufficientLiquidity();
+        
+        tokenInContract.transferFrom(msg.sender, address(this), amountIn);
+        tokenOutContract.transfer(msg.sender, amountOut);
+        
+        if (tokenIn == address(mUSD)) {
+            reserveMUSD += amountIn;
+            reserveRWA -= amountOut;
+        } else {
+            reserveRWA += amountIn;
+            reserveMUSD -= amountOut;
+        }
+        
+        emit Swap(msg.sender, tokenIn, tokenOut, amountIn, amountOut);
     }
 
-   
     function addLiquidity(uint256 amountMUSD, uint256 amountRWA) external returns (uint256 liquidity) {
-        revert("Not implemented");
+        if (amountMUSD == 0 || amountRWA == 0) revert ZeroAmount();
+        
+        if (totalLiquidity == 0) {
+            liquidity = Math.sqrt(amountMUSD * amountRWA);
+            if (liquidity == 0) revert InsufficientLiquidity();
+        } else {
+            uint256 liquidityMUSD = (amountMUSD * totalLiquidity) / reserveMUSD;
+            uint256 liquidityRWA = (amountRWA * totalLiquidity) / reserveRWA;
+            liquidity = liquidityMUSD < liquidityRWA ? liquidityMUSD : liquidityRWA;
+            if (liquidity == 0) revert InsufficientLiquidity();
+        }
+        
+        mUSD.transferFrom(msg.sender, address(this), amountMUSD);
+        rwaToken.transferFrom(msg.sender, address(this), amountRWA);
+        
+        reserveMUSD += amountMUSD;
+        reserveRWA += amountRWA;
+        totalLiquidity += liquidity;
+        liquidityBalances[msg.sender] += liquidity;
+        
+        emit LiquidityAdded(msg.sender, amountMUSD, amountRWA);
     }
 
-   
     function removeLiquidity(uint256 liquidity) external returns (uint256 amountMUSD, uint256 amountRWA) {
-        revert("Not implemented");
+        if (liquidity == 0) revert ZeroAmount();
+        if (liquidityBalances[msg.sender] < liquidity) revert InsufficientLiquidity();
+        
+        amountMUSD = (liquidity * reserveMUSD) / totalLiquidity;
+        amountRWA = (liquidity * reserveRWA) / totalLiquidity;
+        
+        if (amountMUSD == 0 || amountRWA == 0) revert InsufficientLiquidity();
+        
+        liquidityBalances[msg.sender] -= liquidity;
+        totalLiquidity -= liquidity;
+        reserveMUSD -= amountMUSD;
+        reserveRWA -= amountRWA;
+        
+        mUSD.transfer(msg.sender, amountMUSD);
+        rwaToken.transfer(msg.sender, amountRWA);
+        
+        emit LiquidityRemoved(msg.sender, amountMUSD, amountRWA);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -105,7 +189,6 @@ contract RWAPool {
         if (amountIn == 0) return 0;
         if (reserveIn == 0 || reserveOut == 0) return 0;
 
-        // Apply 0.3% fee
         uint256 amountInWithFee = amountIn * 997;
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = (reserveIn * 1000) + amountInWithFee;
