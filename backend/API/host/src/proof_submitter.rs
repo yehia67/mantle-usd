@@ -39,29 +39,36 @@ pub async fn submit_proof_request(
     let (request_id, expires_at) = client.submit_onchain(request).await?;
     println!("🆔 Request ID = {:?}", request_id);
 
-    let fulfillment = client
+    let fulfillment_raw = client
         .wait_for_request_fulfillment(request_id, Duration::from_secs(10), expires_at)
         .await?;
 
     println!(
-        "📦 Fulfillment: {:?}\n🔏 Seal: {:?}",
-        fulfillment.data()?,
-        fulfillment.seal
+        "📦 Fulfillment raw: {:?}\n🔏 Seal: {:?}",
+        fulfillment_raw.data()?,
+        fulfillment_raw.seal
     );
-
-    // 👇 FIX: keep the data alive
-    let data = fulfillment.data()?;
-
-    let journal = data
+    // Keep data alive
+    let data = fulfillment_raw.data()?;
+    let journal_bytes = data
         .journal()
         .ok_or_else(|| anyhow::anyhow!("No journal in fulfillment"))?;
 
-    // Decode journal for logging.
-    let result: Vec<u8> = risc0_zkvm::serde::from_slice(journal.as_ref())?;
+    // Decode journal into Vec<u8>
+    let journal_vec: Vec<u8> = risc0_zkvm::serde::from_slice(journal_bytes.as_ref())?;
+
+    // Construct Fulfillment struct with human-readable string
+    let fulfillment = crate::types::Fulfillment::new(
+        journal_vec,
+        fulfillment_raw.seal.to_vec(),
+        fulfillment_raw.id,
+    );
+
+    // Construct the API response
     let response = Json(UserResponse {
-        proof_journal: result,
+        proof_fulfillment: fulfillment,
         message: "Compliance proven with zkVM".to_string(),
     });
-    println!("✅ Decoded journal value = {}", response.to_output());
+
     Ok(response)
 }

@@ -11,13 +11,13 @@ use serde_json::json;
 use std::{env, sync::Arc};
 use url::Url;
 
-mod proof_submitter;
 mod pinata;
+mod proof_submitter;
 mod types;
 mod utils;
 
-use crate::proof_submitter::*;
 use crate::pinata::*;
+use crate::proof_submitter::*;
 use crate::types::*;
 use crate::utils::*;
 
@@ -103,9 +103,10 @@ async fn post_validate_user(
     rpc_url: Url,
     guest_program_url: Url,
 ) -> Json<UserResponse> {
-    let verified_response = submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
-        .await
-        .expect("zk proof failed");
-    println!("Verified: {}", verified_response.to_output());
+    let verified_response =
+        submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
+            .await
+            .expect("zk proof failed");
+    println!("Verified: {}", verified_response.proof_fulfillment.str_format);
     verified_response
 }
