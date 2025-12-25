@@ -52,6 +52,7 @@ contract RWAPoolFactory {
     error InvalidImageId();
     error PoolAlreadyExists();
     error IdenticalAddresses();
+    error IndexOutOfBounds();
 
     /*//////////////////////////////////////////////////////////////
                             FACTORY FUNCTIONS
@@ -103,7 +104,7 @@ contract RWAPoolFactory {
     /// @notice Get pool address by index
     /// @param index Index in the allPools array
     function getPoolAtIndex(uint256 index) external view returns (address) {
-        require(index < allPools.length, "Index out of bounds");
+        if (index >= allPools.length) revert IndexOutOfBounds();
         return allPools[index];
     }
 

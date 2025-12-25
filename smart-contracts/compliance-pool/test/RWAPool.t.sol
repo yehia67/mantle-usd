@@ -82,44 +82,44 @@ contract RWAPoolTest is Test {
         emit LiquidityAdded(alice, amountMUSD, amountRWA);
 
         vm.prank(alice);
-        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA);
+        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA, 0);
 
         assertEq(pool.reserveMUSD(), amountMUSD);
         assertEq(pool.reserveRWA(), amountRWA);
         assertEq(pool.totalLiquidity(), liquidity);
         assertEq(pool.liquidityBalances(alice), liquidity);
-        assertEq(liquidity, 1000 ether);
+        assertEq(liquidity, 1000 ether - 1000);
     }
 
     function testAddLiquiditySubsequent() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         uint256 amountMUSD = 500 ether;
         uint256 amountRWA = 500 ether;
 
         vm.prank(bob);
-        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA);
+        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA, 0);
 
         assertEq(pool.reserveMUSD(), 1500 ether);
         assertEq(pool.reserveRWA(), 1500 ether);
         assertEq(pool.liquidityBalances(bob), liquidity);
-        assertEq(liquidity, 500 ether);
+        assertEq(liquidity, 500 ether - 500);
     }
 
     function testAddLiquidityRevertsOnZeroAmount() public {
         vm.prank(alice);
         vm.expectRevert(RWAPool.ZeroAmount.selector);
-        pool.addLiquidity(0, 1000 ether);
+        pool.addLiquidity(0, 1000 ether, 0);
 
         vm.prank(alice);
         vm.expectRevert(RWAPool.ZeroAmount.selector);
-        pool.addLiquidity(1000 ether, 0);
+        pool.addLiquidity(1000 ether, 0, 0);
     }
 
     function testRemoveLiquidity() public {
         vm.prank(alice);
-        uint256 liquidity = pool.addLiquidity(1000 ether, 1000 ether);
+        uint256 liquidity = pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         uint256 aliceBalanceMUSDBefore = mUSD.balanceOf(alice);
         uint256 aliceBalanceRWABefore = rwaToken.balanceOf(alice);
@@ -128,7 +128,7 @@ contract RWAPoolTest is Test {
         emit LiquidityRemoved(alice, 500 ether, 500 ether);
 
         vm.prank(alice);
-        (uint256 amountMUSD, uint256 amountRWA) = pool.removeLiquidity(liquidity / 2);
+        (uint256 amountMUSD, uint256 amountRWA) = pool.removeLiquidity(liquidity / 2, 0, 0);
 
         assertEq(amountMUSD, 500 ether);
         assertEq(amountRWA, 500 ether);
@@ -141,25 +141,25 @@ contract RWAPoolTest is Test {
 
     function testRemoveLiquidityRevertsOnZeroAmount() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(alice);
         vm.expectRevert(RWAPool.ZeroAmount.selector);
-        pool.removeLiquidity(0);
+        pool.removeLiquidity(0, 0, 0);
     }
 
     function testRemoveLiquidityRevertsOnInsufficientBalance() public {
         vm.prank(alice);
-        uint256 liquidity = pool.addLiquidity(1000 ether, 1000 ether);
+        uint256 liquidity = pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(bob);
         vm.expectRevert(RWAPool.InsufficientLiquidity.selector);
-        pool.removeLiquidity(liquidity);
+        pool.removeLiquidity(liquidity, 0, 0);
     }
 
     function testSwapMUSDForRWA() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         uint256 amountIn = 100 ether;
         uint256 expectedOut = pool.getAmountOut(amountIn, 1000 ether, 1000 ether);
@@ -196,7 +196,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRWAForMUSD() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         uint256 amountIn = 100 ether;
         uint256 expectedOut = pool.getAmountOut(amountIn, 1000 ether, 1000 ether);
@@ -225,7 +225,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRevertsOnZeroAmount() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(bob);
         vm.expectRevert(RWAPool.ZeroAmount.selector);
@@ -242,7 +242,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRevertsOnInvalidImageId() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         bytes32 wrongImageId = keccak256("wrong_image_id");
 
@@ -261,7 +261,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRevertsOnProofVerificationFailure() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.mockCallRevert(
             verifier,
@@ -284,7 +284,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRevertsOnInvalidToken() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         address invalidToken = address(0x999);
 
@@ -309,7 +309,7 @@ contract RWAPoolTest is Test {
 
     function testSwapRevertsOnInsufficientOutput() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         uint256 amountIn = 100 ether;
         uint256 expectedOut = pool.getAmountOut(amountIn, 1000 ether, 1000 ether);
@@ -321,7 +321,7 @@ contract RWAPoolTest is Test {
         );
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.InsufficientOutput.selector);
+        vm.expectRevert(RWAPool.SlippageExceeded.selector);
         pool.swap(
             address(mUSD),
             address(rwaToken),
@@ -358,7 +358,7 @@ contract RWAPoolTest is Test {
 
     function testGetReserves() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 2000 ether);
+        pool.addLiquidity(1000 ether, 2000 ether, 0);
 
         (uint256 reserveMUSD, uint256 reserveRWA) = pool.getReserves();
         assertEq(reserveMUSD, 1000 ether);
@@ -367,7 +367,7 @@ contract RWAPoolTest is Test {
 
     function testMultipleSwaps() public {
         vm.prank(alice);
-        pool.addLiquidity(10000 ether, 10000 ether);
+        pool.addLiquidity(10000 ether, 10000 ether, 0);
 
         vm.mockCall(
             verifier,
@@ -391,7 +391,7 @@ contract RWAPoolTest is Test {
 
     function testProofParametersPassedToVerifier() public {
         vm.prank(alice);
-        pool.addLiquidity(1000 ether, 1000 ether);
+        pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         bytes memory customSeal = "custom_seal_data";
         bytes32 customJournal = keccak256("custom_journal");
@@ -424,7 +424,7 @@ contract RWAPoolTest is Test {
         amountRWA = bound(amountRWA, 1 ether, 100000 ether);
 
         vm.prank(alice);
-        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA);
+        uint256 liquidity = pool.addLiquidity(amountMUSD, amountRWA, 0);
 
         assertEq(pool.reserveMUSD(), amountMUSD);
         assertEq(pool.reserveRWA(), amountRWA);
@@ -433,7 +433,7 @@ contract RWAPoolTest is Test {
 
     function testFuzzSwap(uint256 amountIn) public {
         vm.prank(alice);
-        pool.addLiquidity(10000 ether, 10000 ether);
+        pool.addLiquidity(10000 ether, 10000 ether, 0);
 
         amountIn = bound(amountIn, 1 ether, 1000 ether);
 

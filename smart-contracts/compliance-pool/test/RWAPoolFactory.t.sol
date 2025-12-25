@@ -146,7 +146,7 @@ contract RWAPoolFactoryTest is Test {
     }
 
     function testGetPoolAtIndexOutOfBounds() public {
-        vm.expectRevert("Index out of bounds");
+        vm.expectRevert(RWAPoolFactory.IndexOutOfBounds.selector);
         factory.getPoolAtIndex(0);
     }
 
