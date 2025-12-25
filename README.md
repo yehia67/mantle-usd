@@ -78,8 +78,7 @@ sequenceDiagram
     participant mETH
     participant mUSD
 
-    User->>mETH: Approve mUSD
-    mUSD->>mETH: transferFrom(User)
+    User->>mETH: Approve mETH
     mUSD->>mUSD: Lock mETH
     mUSD->>User: Mint mUSD
 
@@ -290,8 +289,7 @@ sequenceDiagram
 
     %% ========= BASIC mUSD MINTING =========
     Note over User,mUSD: Basic Flow: Mint mUSD
-    User->>mETH: Approve mUSD
-    mUSD->>mETH: transferFrom(User)
+    User->>mETH: Approve mETH
     mUSD->>mUSD: Lock mETH as collateral
     mUSD->>User: Mint mUSD
 
