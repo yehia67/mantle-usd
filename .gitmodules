@@ -3,4 +3,6 @@
 	url = https://github.com/foundry-rs/forge-std
 [submodule "smart-contracts/compliance-pool/lib/openzeppelin-contracts"]
 	path = smart-contracts/compliance-pool/lib/openzeppelin-contracts
+[submodule "smart-contracts/super-stake/lib/openzeppelin-contracts"]
+	path = smart-contracts/super-stake/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
