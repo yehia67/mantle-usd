@@ -110,7 +110,14 @@ export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
         </div>
         <div className="card-body">
           {data?.musdPositions && data.musdPositions.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '8px',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              paddingRight: '8px'
+            }}>
               {data.musdPositions.slice(0, 10).map((position, index: number) => {
                 const isLock = position.eventType === 'LOCK' || position.eventType === 'LIQUIDATE';
                 const deltaValue = Number(position.deltaCollateral) / 1e18;
