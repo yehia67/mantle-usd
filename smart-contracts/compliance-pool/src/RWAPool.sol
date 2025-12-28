@@ -5,11 +5,12 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IRiscZeroVerifier} from "risc0-ethereum/contracts/src/IRiscZeroVerifier.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IRWAPool} from "./interfaces/IRWAPool.sol";
 
 /// @title RWAPool
 /// @notice AMM pool for mUSD ↔ RWA token swaps with RISC Zero proof verification
 /// @dev All swaps require valid RISC Zero proofs to ensure compliance
-contract RWAPool is ReentrancyGuard {
+contract RWAPool is IRWAPool, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -28,33 +29,6 @@ contract RWAPool is ReentrancyGuard {
     uint256 private constant MINIMUM_LIQUIDITY = 1000;
     uint256 private constant FEE_NUMERATOR = 997;
     uint256 private constant FEE_DENOMINATOR = 1000;
-
-    /*//////////////////////////////////////////////////////////////
-                                EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event LiquidityAdded(address indexed provider, uint256 amountMUSD, uint256 amountRWA);
-    event LiquidityRemoved(address indexed provider, uint256 amountMUSD, uint256 amountRWA);
-    event Swap(
-        address indexed user,
-        address indexed tokenIn,
-        address indexed tokenOut,
-        uint256 amountIn,
-        uint256 amountOut
-    );
-
-    /*//////////////////////////////////////////////////////////////
-                                ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error ZeroAddress();
-    error InvalidImageId();
-    error ProofVerificationFailed();
-    error InsufficientLiquidity();
-    error InsufficientOutput();
-    error InvalidToken();
-    error ZeroAmount();
-    error SlippageExceeded();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR

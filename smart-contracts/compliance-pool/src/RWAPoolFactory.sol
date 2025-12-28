@@ -2,11 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {RWAPool} from "./RWAPool.sol";
+import {IRWAPoolFactory} from "./interfaces/IRWAPoolFactory.sol";
 
 /// @title RWAPoolFactory
 /// @notice Factory contract for deploying compliant RWA liquidity pools
 /// @dev Pools are permissionless to deploy but permissioned to swap (via RISC Zero proofs)
-contract RWAPoolFactory {
+contract RWAPoolFactory is IRWAPoolFactory {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -24,35 +25,6 @@ contract RWAPoolFactory {
     /// @dev Key: keccak256(abi.encodePacked(token0, token1)) where token0 < token1
     mapping(bytes32 => address) public getPool;
 
-    /*//////////////////////////////////////////////////////////////
-                                EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Emitted when a new pool is created
-    /// @param pool Address of the newly created pool
-    /// @param mUSD Address of mUSD token
-    /// @param rwaToken Address of RWA token
-    /// @param verifier Address of RISC Zero verifier
-    /// @param imageId Allowed RISC Zero image ID
-    /// @param poolIndex Index of the pool in allPools array
-    event PoolCreated(
-        address indexed pool,
-        address indexed mUSD,
-        address indexed rwaToken,
-        address verifier,
-        bytes32 imageId,
-        uint256 poolIndex
-    );
-
-    /*//////////////////////////////////////////////////////////////
-                                ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error ZeroAddress();
-    error InvalidImageId();
-    error PoolAlreadyExists();
-    error IdenticalAddresses();
-    error IndexOutOfBounds();
 
     /*//////////////////////////////////////////////////////////////
                             FACTORY FUNCTIONS
