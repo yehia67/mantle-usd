@@ -2,21 +2,21 @@
 
 import { useState } from 'react';
 import { gql, useQuery } from '@apollo/client';
-import { formatBigInt } from '@/utils/format';
+import { formatMUSD, formatToken } from '@/utils/format';
 import { useRWAPool } from '@/hooks/useRWAPool';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useToast } from '@/components/Toast';
 
 const GET_POOLS = gql`
   query GetPools {
-    rwaPools {
+    rwapools {
       id
       assetSymbol
       reserveMUSD
       reserveRWA
       totalLiquidity
       totalVolume
-      swapCount
+      totalSwaps
     }
   }
 `;
@@ -80,14 +80,14 @@ export function PoolsUserPanel() {
               </tr>
             </thead>
             <tbody>
-              {data?.rwaPools?.map((pool: any) => (
+              {data?.rwapools?.map((pool: any) => (
                 <tr key={pool.id}>
                   <td>{pool.assetSymbol}</td>
-                  <td>{formatBigInt(pool.reserveMUSD)} mUSD</td>
-                  <td>{formatBigInt(pool.reserveRWA)}</td>
-                  <td>{formatBigInt(pool.totalLiquidity)}</td>
-                  <td>{formatBigInt(pool.totalVolume)}</td>
-                  <td>{pool.swapCount}</td>
+                  <td>{formatMUSD(pool.reserveMUSD)} mUSD</td>
+                  <td>{formatToken(pool.reserveRWA)}</td>
+                  <td>{formatToken(pool.totalLiquidity)}</td>
+                  <td>{formatMUSD(pool.totalVolume)} mUSD</td>
+                  <td>{pool.totalSwaps}</td>
                   <td>
                     <button 
                       className="btn-sm btn-outline"

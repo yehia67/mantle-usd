@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseEther } from 'ethers';
+import { parseToken } from '@/utils/decimals';
 import { useContract } from './useContract';
 
 const ERC20_ABI = [
@@ -19,7 +19,7 @@ export function useERC20(tokenAddress: string) {
     setLoading(true);
     try {
       const token = await tokenContract.write();
-      const tx = await token.mint(to, parseEther(amount));
+      const tx = await token.mint(to, parseToken(amount));
       await tx.wait();
       return tx.hash;
     } finally {
@@ -33,7 +33,7 @@ export function useERC20(tokenAddress: string) {
     setLoading(true);
     try {
       const token = await tokenContract.write();
-      const tx = await token.burn(from, parseEther(amount));
+      const tx = await token.burn(from, parseToken(amount));
       await tx.wait();
       return tx.hash;
     } finally {

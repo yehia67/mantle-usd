@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { parseEther } from 'ethers';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
+import { parseMUSD, parseToken } from '@/utils/decimals';
 import MUSD_ABI from '@/abis/MUSD.json';
 import ERC20_ABI from '@/abis/ERC20.json';
 
@@ -17,7 +17,7 @@ export function useMUSD() {
     
     setLoading(true);
     try {
-      const amountWei = parseEther(amount);
+      const amountWei = parseToken(amount);
       
       // Check and approve mETH if needed
       const mETH = await mETHContract.write();
@@ -45,7 +45,7 @@ export function useMUSD() {
     setLoading(true);
     try {
       const musd = await musdContract.write();
-      const tx = await musd.unlockCollateral(parseEther(amount));
+      const tx = await musd.unlockCollateral(parseToken(amount));
       await tx.wait();
       return tx.hash;
     } finally {
@@ -59,7 +59,7 @@ export function useMUSD() {
     setLoading(true);
     try {
       const musd = await musdContract.write();
-      const tx = await musd.mint(to, parseEther(amount));
+      const tx = await musd.mint(to, parseMUSD(amount));
       await tx.wait();
       return tx.hash;
     } finally {
@@ -73,7 +73,7 @@ export function useMUSD() {
     setLoading(true);
     try {
       const musd = await musdContract.write();
-      const tx = await musd.burn(from, parseEther(amount));
+      const tx = await musd.burn(from, parseMUSD(amount));
       await tx.wait();
       return tx.hash;
     } finally {

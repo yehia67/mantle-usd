@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { gql, useQuery } from '@apollo/client';
-import { formatBigInt, formatAddress } from '@/utils/format';
+import { formatMUSD, formatToken, formatAddress } from '@/utils/format';
 import { useMUSD } from '@/hooks/useMUSD';
 import { useERC20 } from '@/hooks/useERC20';
 import { useToast } from '@/components/Toast';
@@ -209,15 +209,15 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
             </thead>
             <tbody>
               {data?.users?.map((user: any) => {
-                const healthFactor = parseFloat(user.healthFactor);
+                const healthFactor = parseFloat(user.healthFactor) / 100;
                 const isLiquidatable = healthFactor < 1.5;
                 
                 return (
                   <tr key={user.id}>
                     <td>{formatAddress(user.address)}</td>
-                    <td>{formatBigInt(user.musdBalance)} mUSD</td>
-                    <td>{formatBigInt(user.debtBalance)} mUSD</td>
-                    <td>{formatBigInt(user.collateralBalance)} mETH</td>
+                    <td>{formatMUSD(user.musdBalance)} mUSD</td>
+                    <td>{formatMUSD(user.debtBalance)} mUSD</td>
+                    <td>{formatToken(user.collateralBalance)} mETH</td>
                     <td>
                       <span className={healthFactor < 1.5 ? 'badge badge-danger' : healthFactor < 2 ? 'badge badge-warning' : 'badge badge-success'}>
                         {healthFactor.toFixed(2)}

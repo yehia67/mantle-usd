@@ -1,7 +1,7 @@
 'use client';
 
 import { StatCard } from '@/components/StatCard';
-import { formatBigInt } from '@/utils/format';
+import { formatMUSD, formatToken } from '@/utils/format';
 
 interface AdminDashboardProps {
   data: any;
@@ -48,17 +48,17 @@ export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
       <div className="grid grid-4">
         <StatCard 
           label="Total Supply" 
-          value={formatBigInt(totalSupply.toString())} 
+          value={formatMUSD(totalSupply.toString())} 
           suffix="mUSD"
         />
         <StatCard 
           label="Total Debt" 
-          value={formatBigInt(totalDebt.toString())} 
+          value={formatMUSD(totalDebt.toString())} 
           suffix="mUSD"
         />
         <StatCard 
           label="Total Collateral" 
-          value={formatBigInt(totalCollateral.toString())} 
+          value={formatToken(totalCollateral.toString())} 
           suffix="mETH"
         />
         <StatCard 
@@ -73,7 +73,7 @@ export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
         />
         <StatCard 
           label="Total Volume" 
-          value={formatBigInt(totalVolume.toString())} 
+          value={formatMUSD(totalVolume.toString())} 
           suffix="mUSD"
         />
         <StatCard 

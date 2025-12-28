@@ -1,9 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { gql, useQuery } from '@apollo/client';
 import { StatCard } from '@/components/StatCard';
-import { formatBigInt } from '@/utils/format';
+import { formatMUSD, formatToken } from '@/utils/format';
+import { useContract } from '@/hooks/useContract';
+import { CONTRACT_ADDRESSES } from '@/config/constants';
+import ERC20_ABI from '@/abis/ERC20.json';
 
 const GET_USER_DATA = gql`
   query GetUserData($id: ID!) {
@@ -28,6 +32,37 @@ export function UserDashboard() {
     variables: { id: address?.toLowerCase() },
     skip: !address,
   });
+  
+  const mETHContract = useContract(CONTRACT_ADDRESSES.mETH, ERC20_ABI);
+  const musdContract = useContract(CONTRACT_ADDRESSES.mUSD, ERC20_ABI);
+  const [mETHBalance, setMETHBalance] = useState<string>('0');
+  const [musdWalletBalance, setMusdWalletBalance] = useState<string>('0');
+  const [balancesLoading, setBalancesLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchBalances() {
+      if (!address || !mETHContract || !musdContract) {
+        setBalancesLoading(false);
+        return;
+      }
+      
+      try {
+        setBalancesLoading(true);
+        const [methBal, musdBal] = await Promise.all([
+          mETHContract.read.balanceOf(address),
+          musdContract.read.balanceOf(address)
+        ]);
+        setMETHBalance(methBal.toString());
+        setMusdWalletBalance(musdBal.toString());
+      } catch (err) {
+        console.error('Error fetching balances:', err);
+      } finally {
+        setBalancesLoading(false);
+      }
+    }
+    
+    fetchBalances();
+  }, [address, mETHContract, musdContract]);
 
   if (!address) {
     return (
@@ -37,35 +72,55 @@ export function UserDashboard() {
     );
   }
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || balancesLoading) return <div className="loading">Loading...</div>;
   if (error) return <div className="error">Error loading data: {error.message}</div>;
 
   const user = data?.user;
+  const hasNoCollateral = !user || (user.collateralBalance === '0' && user.debtBalance === '0');
 
   return (
     <div>
       <h2 className="mb-3">Your Dashboard</h2>
+      
+      {hasNoCollateral && (
+        <div className="card mb-3" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107' }}>
+          <p className="text-secondary" style={{ margin: 0 }}>
+            ℹ️ This wallet has not locked any collateral yet. Lock mETH collateral to mint mUSD.
+          </p>
+        </div>
+      )}
+      
       <div className="grid grid-4">
         <StatCard 
-          label="mUSD Balance" 
-          value={formatBigInt(user?.musdBalance || '0')} 
-          suffix="mUSD"
-        />
-        <StatCard 
-          label="Debt" 
-          value={formatBigInt(user?.debtBalance || '0')} 
-          suffix="mUSD"
-        />
-        <StatCard 
-          label="Collateral" 
-          value={formatBigInt(user?.collateralBalance || '0')} 
+          label="Available mETH" 
+          value={formatToken(mETHBalance)} 
           suffix="mETH"
         />
         <StatCard 
-          label="Health Factor" 
-          value={user?.healthFactor ? parseFloat(user.healthFactor).toFixed(2) : 'N/A'}
+          label="Available mUSD" 
+          value={formatMUSD(musdWalletBalance)} 
+          suffix="mUSD"
+        />
+        <StatCard 
+          label="Locked Collateral" 
+          value={formatToken(user?.collateralBalance || '0')} 
+          suffix="mETH"
+        />
+        <StatCard 
+          label="Debt" 
+          value={formatMUSD(user?.debtBalance || '0')} 
+          suffix="mUSD"
         />
       </div>
+      
+      {!hasNoCollateral && (
+        <div className="grid grid-2 mt-3">
+          <StatCard 
+            label="Health Factor" 
+            value={user?.healthFactor ? `${(parseFloat(user.healthFactor) / 100).toFixed(2)}` : 'N/A'}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { parseEther } from 'ethers';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
+import { parseMUSD, parseToken } from '@/utils/decimals';
 import RWAPOOL_ABI from '@/abis/RWAPool.json';
 import ERC20_ABI from '@/abis/ERC20.json';
 
@@ -29,7 +29,9 @@ export function useRWAPool(poolAddress: string) {
       const tokenContract = useContract(tokenIn, ERC20_ABI);
       if (tokenContract && address) {
         const token = await tokenContract.write();
-        const amountWei = parseEther(amountIn);
+        // Use appropriate decimals based on token (mUSD = 6, RWA = 18)
+        const isMUSD = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.mUSD.toLowerCase();
+        const amountWei = isMUSD ? parseMUSD(amountIn) : parseToken(amountIn);
         const allowance = await tokenContract.read.allowance(address, poolAddress);
         
         if (allowance < amountWei) {
@@ -39,11 +41,13 @@ export function useRWAPool(poolAddress: string) {
       }
       
       const pool = await poolContract.write();
+      const isMUSDIn = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.mUSD.toLowerCase();
+      const isMUSDOut = tokenOut.toLowerCase() === CONTRACT_ADDRESSES.mUSD.toLowerCase();
       const tx = await pool.swap(
         tokenIn,
         tokenOut,
-        parseEther(amountIn),
-        parseEther(minAmountOut),
+        isMUSDIn ? parseMUSD(amountIn) : parseToken(amountIn),
+        isMUSDOut ? parseMUSD(minAmountOut) : parseToken(minAmountOut),
         seal,
         imageId,
         journalDigest
@@ -60,8 +64,8 @@ export function useRWAPool(poolAddress: string) {
     
     setLoading(true);
     try {
-      const amountMUSDWei = parseEther(amountMUSD);
-      const amountRWAWei = parseEther(amountRWA);
+      const amountMUSDWei = parseMUSD(amountMUSD);
+      const amountRWAWei = parseToken(amountRWA);
       
       // Approve mUSD
       const musd = await musdContract.write();
@@ -74,7 +78,7 @@ export function useRWAPool(poolAddress: string) {
       
       // Add liquidity
       const pool = await poolContract.write();
-      const tx = await pool.addLiquidity(amountMUSDWei, amountRWAWei, parseEther(minLiquidity));
+      const tx = await pool.addLiquidity(amountMUSDWei, amountRWAWei, parseToken(minLiquidity));
       await tx.wait();
       return tx.hash;
     } finally {
@@ -89,9 +93,9 @@ export function useRWAPool(poolAddress: string) {
     try {
       const pool = await poolContract.write();
       const tx = await pool.removeLiquidity(
-        parseEther(liquidity),
-        parseEther(minAmountMUSD),
-        parseEther(minAmountRWA)
+        parseToken(liquidity),
+        parseMUSD(minAmountMUSD),
+        parseToken(minAmountRWA)
       );
       await tx.wait();
       return tx.hash;

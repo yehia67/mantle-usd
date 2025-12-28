@@ -1,13 +1,16 @@
 'use client';
 
 import { gql, useQuery } from '@apollo/client';
-import { formatBigInt, formatAddress } from '@/utils/format';
+import { formatMUSD, formatToken, formatAddress } from '@/utils/format';
 
 const GET_ALL_SUPERSTAKE_POSITIONS = gql`
   query GetAllSuperStakePositions {
     superStakePositions(first: 100, where: { active: true }) {
       id
-      user
+      user {
+        id
+        address
+      }
       collateralLocked
       totalDebtMinted
       loops
@@ -42,9 +45,9 @@ export function SuperStakeAdminPanel() {
             <tbody>
               {data?.superStakePositions?.map((position: any) => (
                 <tr key={position.id}>
-                  <td>{formatAddress(position.user)}</td>
-                  <td>{formatBigInt(position.collateralLocked)} mETH</td>
-                  <td>{formatBigInt(position.totalDebtMinted)} mUSD</td>
+                  <td>{formatAddress(position.user.address)}</td>
+                  <td>{formatToken(position.collateralLocked)} mETH</td>
+                  <td>{formatMUSD(position.totalDebtMinted)} mUSD</td>
                   <td>{position.loops}</td>
                   <td>
                     <span className="badge badge-success">Active</span>

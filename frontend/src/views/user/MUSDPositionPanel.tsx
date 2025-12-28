@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { gql, useQuery } from '@apollo/client';
-import { formatBigInt } from '@/utils/format';
+import { formatMUSD, formatToken } from '@/utils/format';
 import { useMUSD } from '@/hooks/useMUSD';
 import { useToast } from '@/components/Toast';
 
@@ -16,7 +16,7 @@ const GET_MUSD_POSITIONS = gql`
       debtBalance
       collateralBalance
       healthFactor
-      musdPositions {
+      musdPositions(orderBy: lastUpdatedTimestamp, orderDirection: desc) {
         id
         collateralAmount
         debtAmount
@@ -102,15 +102,15 @@ export function MUSDPositionPanel() {
           <div className="grid grid-3 mb-3">
             <div>
               <p className="text-xs text-secondary">Collateral</p>
-              <p className="text-sm">{formatBigInt(data.user.collateralBalance)} mETH</p>
+              <p className="text-sm">{formatToken(data.user.collateralBalance)} mETH</p>
             </div>
             <div>
               <p className="text-xs text-secondary">Debt</p>
-              <p className="text-sm">{formatBigInt(data.user.debtBalance)} mUSD</p>
+              <p className="text-sm">{formatMUSD(data.user.debtBalance)} mUSD</p>
             </div>
             <div>
               <p className="text-xs text-secondary">Health Factor</p>
-              <p className="text-sm">{parseFloat(data.user.healthFactor || '0').toFixed(2)}</p>
+              <p className="text-sm">{(parseFloat(data.user.healthFactor || '0') / 100).toFixed(2)}</p>
             </div>
           </div>
           
@@ -131,9 +131,9 @@ export function MUSDPositionPanel() {
                     {data.user.musdPositions.slice(0, 10).map((position: any) => (
                       <tr key={position.id}>
                         <td>{position.eventType}</td>
-                        <td>{formatBigInt(position.collateralAmount)} mETH</td>
-                        <td>{formatBigInt(position.debtAmount)} mUSD</td>
-                        <td>{parseFloat(position.healthFactor).toFixed(2)}</td>
+                        <td>{formatToken(position.collateralAmount)} mETH</td>
+                        <td>{formatMUSD(position.debtAmount)} mUSD</td>
+                        <td>{(parseFloat(position.healthFactor) / 100).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

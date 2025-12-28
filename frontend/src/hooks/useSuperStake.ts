@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { parseEther } from 'ethers';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
+import { parseToken } from '@/utils/decimals';
 import SUPERSTAKE_ABI from '@/abis/SuperStake.json';
 import ERC20_ABI from '@/abis/ERC20.json';
 
@@ -10,6 +10,7 @@ export function useSuperStake() {
   const { address } = useAppKitAccount();
   const superStakeContract = useContract(CONTRACT_ADDRESSES.SuperStake, SUPERSTAKE_ABI);
   const mETHContract = useContract(CONTRACT_ADDRESSES.mETH, ERC20_ABI);
+  const musdContract = useContract(CONTRACT_ADDRESSES.mUSD, ERC20_ABI);
   const [loading, setLoading] = useState(false);
 
   const deposit = async (ethAmount: string, loops: number, swapData: string = '0x') => {
@@ -17,7 +18,7 @@ export function useSuperStake() {
     
     setLoading(true);
     try {
-      const amountWei = parseEther(ethAmount);
+      const amountWei = parseToken(ethAmount);
       
       // Check and approve mETH if needed
       const mETH = await mETHContract.write();
@@ -40,12 +41,27 @@ export function useSuperStake() {
   };
 
   const withdraw = async (ethAmount: string, swapData: string = '0x') => {
-    if (!superStakeContract) throw new Error('Not connected');
+    if (!superStakeContract || !musdContract || !address) throw new Error('Not connected');
     
     setLoading(true);
     try {
+      const amountWei = parseToken(ethAmount);
+      
+      // Calculate debt to burn using SuperStake's preview function
+      const debtToBurn = await superStakeContract.read.previewDebtForCollateral(amountWei);
+      
+      // Check and approve mUSD if needed
+      const musd = await musdContract.write();
+      const allowance = await musdContract.read.allowance(address, CONTRACT_ADDRESSES.SuperStake);
+      
+      if (allowance < debtToBurn) {
+        const approveTx = await musd.approve(CONTRACT_ADDRESSES.SuperStake, debtToBurn);
+        await approveTx.wait();
+      }
+      
+      // Withdraw
       const superStake = await superStakeContract.write();
-      const tx = await superStake.withdraw(parseEther(ethAmount), swapData);
+      const tx = await superStake.withdraw(amountWei, swapData);
       await tx.wait();
       return tx.hash;
     } finally {

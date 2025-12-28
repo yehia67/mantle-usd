@@ -9,6 +9,7 @@ type User @entity(immutable: false) {
   liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "user")
   swaps: [RWASwap!]! @derivedFrom(field: "user")
   superstakePosition: SuperStakePosition
+  superstakeHistory: [SuperStakePositionHistory!]! @derivedFrom(field: "user")
 }
 
 type mUSDPosition @entity(immutable: false) {
@@ -37,6 +38,19 @@ type SuperStakePosition @entity(immutable: false) {
   updatedAtTimestamp: BigInt!
   closedAtBlock: BigInt
   closedAtTimestamp: BigInt
+}
+
+type SuperStakePositionHistory @entity(immutable: true) {
+  id: ID!
+  user: User!
+  collateralAmount: BigInt!
+  debtAmount: BigInt!
+  deltaCollateral: BigInt!
+  deltaDebt: BigInt!
+  eventType: String!
+  loops: Int!
+  timestamp: BigInt!
+  blockNumber: BigInt!
 }
 
 type RWAPool @entity(immutable: false) {

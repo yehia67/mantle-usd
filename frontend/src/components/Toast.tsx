@@ -40,6 +40,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
@@ -48,7 +52,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             className={`toast toast-${toast.type}`}
-            onClick={() => removeToast(toast.id)}
           >
             <div className="toast-content">
               <span className="toast-icon">
@@ -56,7 +59,63 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 {toast.type === 'error' && '✕'}
                 {toast.type === 'info' && 'ℹ'}
               </span>
-              <span className="toast-message">{toast.message}</span>
+              <span 
+                className="toast-message" 
+                style={{ 
+                  userSelect: 'text', 
+                  cursor: 'text',
+                  flex: 1 
+                }}
+              >
+                {toast.message}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyToClipboard(toast.message);
+                }}
+                style={{
+                  marginLeft: '8px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '4px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => removeToast(toast.id)}
+                style={{
+                  marginLeft: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '4px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+              >
+                ✕
+              </button>
             </div>
           </div>
         ))}
