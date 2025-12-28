@@ -5,50 +5,26 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-
-interface IMUSD is IERC20 {
-    function lockCollateral(uint256 amount) external;
-    function unlockCollateral(uint256 amount) external;
-    function collateralAsset() external view returns (IERC20);
-    function collateralBalances(address account) external view returns (uint256);
-    function debtBalances(address account) external view returns (uint256);
-    function mintPercentageBps() external view returns (uint256);
-    function collateralPriceUsd() external view returns (uint256);
-}
-
-interface ISwapper {
-    function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        external
-        returns (uint256 amountOut);
-}
+import {IMUSD} from "mUSD/interfaces/IMUSD.sol";
+import {ISwapper} from "./interfaces/ISwapper.sol";
+import {ISuperStake} from "./interfaces/ISuperStake.sol";
 
 /// @title SuperStake
 /// @notice Leverage helper: provides swap services for mETH leverage loops.
 /// @dev Users own positions directly in mUSD. SuperStake only facilitates swaps between mUSD and mETH.
-contract SuperStake is Ownable, ReentrancyGuard {
+contract SuperStake is ISuperStake, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeERC20 for IMUSD;
 
     uint256 private constant BPS_DENOMINATOR = 10_000;
     uint256 private constant PRICE_SCALE = 1e18;
 
-    struct Position {
-        uint256 collateralLocked;
-        uint256 debtMUSD;
-    }
-
     IMUSD public mUsd;
     IERC20 public mEth;
     ISwapper public swapper;
     uint8 public maxLeverageLoops = 3;
 
-    mapping(address => Position) private positions;
-
-    event TokensConfigured(address indexed mUsd, address indexed mEth);
-    event SwapperUpdated(address indexed swapper);
-    event MaxLoopsUpdated(uint8 maxLoops);
-    event PositionOpened(address indexed user, uint256 collateralLocked, uint256 totalDebtMinted, uint8 loopsExecuted);
-    event PositionClosed(address indexed user, uint256 collateralReleased, uint256 debtBurned);
+    mapping(address => ISuperStake.Position) private positions;
 
     constructor() Ownable(msg.sender) {}
 
@@ -110,7 +86,7 @@ contract SuperStake is Ownable, ReentrancyGuard {
             totalDebtMinted += finalDebt;
         }
 
-        Position storage position = positions[msg.sender];
+        ISuperStake.Position storage position = positions[msg.sender];
         position.collateralLocked += collateralLocked;
         position.debtMUSD += totalDebtMinted;
 
@@ -123,7 +99,7 @@ contract SuperStake is Ownable, ReentrancyGuard {
         returns (uint256 musdReturned)
     {
         require(ethAmount > 0, "amount zero");
-        Position storage position = positions[msg.sender];
+        ISuperStake.Position storage position = positions[msg.sender];
         require(ethAmount <= position.collateralLocked, "insufficient collateral");
         require(address(swapper) != address(0), "swapper unset");
 
@@ -175,7 +151,7 @@ contract SuperStake is Ownable, ReentrancyGuard {
                               VIEW HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function getPosition(address account) external view returns (Position memory) {
+    function getPosition(address account) external view returns (ISuperStake.Position memory) {
         return positions[account];
     }
 
@@ -224,6 +200,10 @@ contract SuperStake is Ownable, ReentrancyGuard {
         if (collateralAmount == 0) return 0;
         uint256 price = mUsd.collateralPriceUsd();
         uint256 percentage = mUsd.mintPercentageBps();
-        return ((collateralAmount * price) / PRICE_SCALE) * percentage / BPS_DENOMINATOR;
+        // Returns debt in 6 decimals (mUSD decimals)
+        // collateralAmount (18 decimals) * price (18 decimals) / 1e18 = USD value (18 decimals)
+        // USD value * percentage / 10_000 = debt in 18 decimals
+        // Convert to 6 decimals: / 1e12
+        return (((collateralAmount * price) / PRICE_SCALE) * percentage / BPS_DENOMINATOR) / 1e12;
     }
 }
