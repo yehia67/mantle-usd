@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
@@ -11,22 +11,46 @@ export function useMUSD() {
   const musdContract = useContract(CONTRACT_ADDRESSES.mUSD, MUSD_ABI);
   const mETHContract = useContract(CONTRACT_ADDRESSES.mETH, ERC20_ABI);
   const [loading, setLoading] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(false);
+  const [approvalAmount, setApprovalAmount] = useState<bigint>(BigInt(0));
+
+  const checkApproval = async (amount: string) => {
+    if (!mETHContract || !address) return false;
+    
+    try {
+      const amountWei = parseToken(amount);
+      const allowance = await mETHContract.read.allowance(address, CONTRACT_ADDRESSES.mUSD);
+      const needs = allowance < amountWei;
+      setNeedsApproval(needs);
+      setApprovalAmount(amountWei);
+      return needs;
+    } catch (error) {
+      console.error('Error checking approval:', error);
+      return false;
+    }
+  };
+
+  const approveMETH = async () => {
+    if (!mETHContract || !address) throw new Error('Not connected');
+    
+    setLoading(true);
+    try {
+      const mETH = await mETHContract.write();
+      const approveTx = await mETH.approve(CONTRACT_ADDRESSES.mUSD, approvalAmount);
+      await approveTx.wait();
+      setNeedsApproval(false);
+      return approveTx.hash;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const lockCollateral = async (amount: string) => {
-    if (!musdContract || !mETHContract || !address) throw new Error('Not connected');
+    if (!musdContract || !address) throw new Error('Not connected');
     
     setLoading(true);
     try {
       const amountWei = parseToken(amount);
-      
-      // Check and approve mETH if needed
-      const mETH = await mETHContract.write();
-      const allowance = await mETHContract.read.allowance(address, CONTRACT_ADDRESSES.mUSD);
-      
-      if (allowance < amountWei) {
-        const approveTx = await mETH.approve(CONTRACT_ADDRESSES.mUSD, amountWei);
-        await approveTx.wait();
-      }
       
       // Lock collateral
       const musd = await musdContract.write();
@@ -101,6 +125,9 @@ export function useMUSD() {
     mint,
     burn,
     liquidate,
+    checkApproval,
+    approveMETH,
+    needsApproval,
     loading,
   };
 }

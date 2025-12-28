@@ -45,7 +45,37 @@ export function SuperStakeUserPanel() {
     skip: !address,
   });
 
-  const { deposit, withdraw, loading: txLoading } = useSuperStake();
+  const { 
+    deposit, 
+    withdraw, 
+    checkDepositApproval, 
+    checkWithdrawApproval, 
+    approveMETH, 
+    approveMUSD, 
+    needsApprovalMETH, 
+    needsApprovalMUSD, 
+    loading: txLoading 
+  } = useSuperStake();
+
+  const handleAmountChange = async (value: string) => {
+    setAmount(value);
+    if (value) {
+      if (action === 'deposit') {
+        await checkDepositApproval(value);
+      } else if (action === 'withdraw') {
+        await checkWithdrawApproval(value);
+      }
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      const txHash = action === 'deposit' ? await approveMETH() : await approveMUSD();
+      showToast(`Approval confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Approval failed', 'error');
+    }
+  };
 
   const handleAction = async () => {
     try {
@@ -59,7 +89,6 @@ export function SuperStakeUserPanel() {
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
-        // Wait for subgraph to index the transaction before refetching
         setTimeout(() => refetch(), 3000);
       }
     } catch (error: any) {
@@ -107,7 +136,7 @@ export function SuperStakeUserPanel() {
           <input
             type="number"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0.0"
             style={{ paddingRight: action === 'withdraw' && position?.active ? '60px' : undefined }}
           />
@@ -159,9 +188,15 @@ export function SuperStakeUserPanel() {
         </div>
       )}
 
-      <button className="btn-primary" onClick={handleAction} disabled={!amount || !address || txLoading}>
-        {txLoading ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
-      </button>
+      {((action === 'deposit' && needsApprovalMETH) || (action === 'withdraw' && needsApprovalMUSD)) ? (
+        <button className="btn-primary" onClick={handleApprove} disabled={!amount || !address || txLoading}>
+          {txLoading ? 'Approving...' : `Approve ${action === 'deposit' ? 'mETH' : 'mUSD'}`}
+        </button>
+      ) : (
+        <button className="btn-primary" onClick={handleAction} disabled={!amount || !address || txLoading}>
+          {txLoading ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
+        </button>
+      )}
 
       {history.length > 0 && (
         <>

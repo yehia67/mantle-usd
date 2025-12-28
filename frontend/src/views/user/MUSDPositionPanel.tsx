@@ -41,7 +41,23 @@ export function MUSDPositionPanel() {
     skip: !address,
   });
 
-  const { lockCollateral, unlockCollateral, loading: txLoading } = useMUSD();
+  const { lockCollateral, unlockCollateral, checkApproval, approveMETH, needsApproval, loading: txLoading } = useMUSD();
+
+  const handleAmountChange = async (value: string) => {
+    setAmount(value);
+    if (action === 'lock' && value) {
+      await checkApproval(value);
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      const txHash = await approveMETH();
+      showToast(`Approval confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Approval failed', 'error');
+    }
+  };
 
   const handleAction = async () => {
     try {
@@ -55,7 +71,6 @@ export function MUSDPositionPanel() {
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
-        // Wait for subgraph to index the transaction before refetching
         setTimeout(() => refetch(), 3000);
       }
     } catch (error: any) {
@@ -85,14 +100,20 @@ export function MUSDPositionPanel() {
         <input
           type="number"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => handleAmountChange(e.target.value)}
           placeholder="0.0"
         />
       </div>
 
-      <button className="btn-primary" onClick={handleAction} disabled={!amount || !address || txLoading}>
-        {txLoading ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
-      </button>
+      {action === 'lock' && needsApproval ? (
+        <button className="btn-primary" onClick={handleApprove} disabled={!amount || !address || txLoading}>
+          {txLoading ? 'Approving...' : 'Approve mETH'}
+        </button>
+      ) : (
+        <button className="btn-primary" onClick={handleAction} disabled={!amount || !address || txLoading}>
+          {txLoading ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
+        </button>
+      )}
 
       {loading ? (
         <div className="loading mt-3">Loading positions...</div>
