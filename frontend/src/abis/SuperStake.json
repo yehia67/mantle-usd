@@ -1,0 +1,42 @@
+[
+  {
+    "type": "function",
+    "name": "deposit",
+    "inputs": [
+      {"name": "ethAmount", "type": "uint256"},
+      {"name": "loops", "type": "uint8"},
+      {"name": "swapData", "type": "bytes"}
+    ],
+    "outputs": [
+      {"name": "collateralLocked", "type": "uint256"},
+      {"name": "totalDebtMinted", "type": "uint256"}
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdraw",
+    "inputs": [
+      {"name": "ethAmount", "type": "uint256"},
+      {"name": "swapData", "type": "bytes"}
+    ],
+    "outputs": [{"name": "musdReturned", "type": "uint256"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getPosition",
+    "inputs": [{"name": "account", "type": "address"}],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "components": [
+          {"name": "collateralLocked", "type": "uint256"},
+          {"name": "debtMUSD", "type": "uint256"}
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  }
+]

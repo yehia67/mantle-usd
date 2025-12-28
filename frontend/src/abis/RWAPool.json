@@ -1,0 +1,52 @@
+[
+  {
+    "type": "function",
+    "name": "swap",
+    "inputs": [
+      {"name": "tokenIn", "type": "address"},
+      {"name": "tokenOut", "type": "address"},
+      {"name": "amountIn", "type": "uint256"},
+      {"name": "minAmountOut", "type": "uint256"},
+      {"name": "seal", "type": "bytes"},
+      {"name": "imageId", "type": "bytes32"},
+      {"name": "journalDigest", "type": "bytes32"}
+    ],
+    "outputs": [{"name": "amountOut", "type": "uint256"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addLiquidity",
+    "inputs": [
+      {"name": "amountMUSD", "type": "uint256"},
+      {"name": "amountRWA", "type": "uint256"},
+      {"name": "minLiquidity", "type": "uint256"}
+    ],
+    "outputs": [{"name": "liquidity", "type": "uint256"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "removeLiquidity",
+    "inputs": [
+      {"name": "liquidity", "type": "uint256"},
+      {"name": "minAmountMUSD", "type": "uint256"},
+      {"name": "minAmountRWA", "type": "uint256"}
+    ],
+    "outputs": [
+      {"name": "amountMUSD", "type": "uint256"},
+      {"name": "amountRWA", "type": "uint256"}
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getReserves",
+    "inputs": [],
+    "outputs": [
+      {"name": "_reserveMUSD", "type": "uint256"},
+      {"name": "_reserveRWA", "type": "uint256"}
+    ],
+    "stateMutability": "view"
+  }
+]
