@@ -29,9 +29,7 @@ export function PoolsUserPanel() {
   const { address } = useAppKitAccount();
   const { showToast } = useToast();
   
-  // Use a placeholder address to prevent ENS error when no pool is selected
-  const poolAddress = selectedPool || '0x0000000000000000000000000000000000000000';
-  const { addLiquidity, swap, loading: txLoading } = useRWAPool(poolAddress);
+  const { addLiquidity, loading: swapLoading } = useRWAPool(selectedPool || '');
 
   const handleAction = async () => {
     if (!selectedPool || !amount) return;
@@ -52,8 +50,8 @@ export function PoolsUserPanel() {
         // Wait for subgraph to index the transaction before refetching
         setTimeout(() => refetch(), 3000);
       }
-    } catch (error: any) {
-      showToast(error.message || 'Transaction failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Swap failed', 'error');
     }
   };
 
@@ -80,7 +78,7 @@ export function PoolsUserPanel() {
               </tr>
             </thead>
             <tbody>
-              {data?.rwapools?.map((pool: any) => (
+              {data?.rwapools?.map((pool: { id: string; assetSymbol: string; reserveMUSD: string; reserveRWA: string; totalLiquidity: string; totalVolume: string; totalSwaps: string }) => (
                 <tr key={pool.id}>
                   <td>{pool.assetSymbol}</td>
                   <td>{formatMUSD(pool.reserveMUSD)} mUSD</td>
@@ -126,9 +124,9 @@ export function PoolsUserPanel() {
           <button 
             className="btn-primary" 
             onClick={handleAction}
-            disabled={!amount || !address || txLoading}
+            disabled={!amount || !address || swapLoading}
           >
-            {txLoading ? 'Processing...' : action === 'addLiquidity' ? 'Add Liquidity' : 'Swap'}
+            {swapLoading ? 'Processing...' : action === 'addLiquidity' ? 'Add Liquidity' : 'Swap'}
           </button>
         </div>
       )}

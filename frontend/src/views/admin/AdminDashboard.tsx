@@ -4,9 +4,30 @@ import { StatCard } from '@/components/StatCard';
 import { formatMUSD, formatToken } from '@/utils/format';
 
 interface AdminDashboardProps {
-  data: any;
+  data: {
+    users?: Array<{
+      id: string;
+      musdBalance: string;
+      debtBalance: string;
+      collateralBalance: string;
+      superstakePosition?: unknown;
+      liquidityPositions?: unknown[];
+    }>;
+    rwapools?: Array<{
+      id: string;
+      totalVolume: string;
+      totalSwaps: string;
+    }>;
+    musdPositions?: Array<{
+      id: string;
+      eventType: string;
+      collateralAmount: string;
+      deltaCollateral: string;
+      lastUpdatedTimestamp: string;
+    }>;
+  };
   loading: boolean;
-  error: any;
+  error: Error | undefined;
 }
 
 export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
@@ -17,49 +38,31 @@ export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
   const users = data?.users || [];
   const pools = data?.rwapools || [];
   
-  const totalSupply = users.reduce((sum: bigint, user: any) => 
+  const totalSupply = users.reduce((sum: bigint, user) => 
     sum + BigInt(user.musdBalance || '0'), BigInt(0)
   );
   
-  const totalDebt = users.reduce((sum: bigint, user: any) => 
+  const totalDebt = users.reduce((sum: bigint, user) => 
     sum + BigInt(user.debtBalance || '0'), BigInt(0)
   );
   
-  const totalCollateral = users.reduce((sum: bigint, user: any) => 
+  const totalCollateral = users.reduce((sum: bigint, user) => 
     sum + BigInt(user.collateralBalance || '0'), BigInt(0)
   );
   
-  const activeUsers = users.filter((user: any) => 
+  const activeUsers = users.filter((user) => 
     BigInt(user.collateralBalance || '0') > BigInt(0) || 
     BigInt(user.debtBalance || '0') > BigInt(0)
   ).length;
   
-  const totalVolume = pools.reduce((sum: bigint, pool: any) => 
+  const totalVolume = pools.reduce((sum: bigint, pool) => 
     sum + BigInt(pool.totalVolume || '0'), BigInt(0)
   );
   
-  const totalSwaps = pools.reduce((sum: number, pool: any) => 
+  const totalSwaps = pools.reduce((sum: number, pool) => 
     sum + parseInt(pool.totalSwaps || '0'), 0
   );
 
-  const toBaseUnits = (value: bigint, decimals: number) => {
-    if (value === BigInt(0)) return 0;
-    const divisor = BigInt(10) ** BigInt(decimals);
-    const integerPart = Number(value / divisor);
-    const remainder = Number(value % divisor);
-    return integerPart + remainder / Number(divisor.toString());
-  };
-
-  const collateralChartValue = toBaseUnits(totalCollateral, 18);
-  const debtChartValue = toBaseUnits(totalDebt, 6);
-  const totalChartValue = collateralChartValue + debtChartValue;
-  const collateralPercent = totalChartValue ? (collateralChartValue / totalChartValue) * 100 : 0;
-  const debtPercent = totalChartValue ? (debtChartValue / totalChartValue) * 100 : 0;
-  const hasChartData = totalChartValue > 0;
-
-  const usersWithMUSD = users.filter((u: any) => BigInt(u.collateralBalance || '0') > BigInt(0)).length;
-  const usersWithSuperStake = users.filter((u: any) => u.superstakePosition).length;
-  const usersWithLiquidity = users.filter((u: any) => u.liquidityPositions?.length > 0).length;
 
   return (
     <div>
@@ -101,131 +104,74 @@ export function AdminDashboard({ data, loading, error }: AdminDashboardProps) {
         />
       </div>
 
-      <div className="grid grid-2 mt-3 gap-3">
-        <div className="card">
-          <div className="card-header">
-            <h4>Collateral vs. Debt</h4>
-          </div>
-          <div className="card-body">
-            {hasChartData ? (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    height: '14px',
-                    borderRadius: '9999px',
-                    overflow: 'hidden',
-                    background: '#1f2937',
-                    boxShadow: 'inset 0 0 6px rgba(0,0,0,0.35)',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${collateralPercent}%`,
-                      background: 'linear-gradient(90deg, #6ee7b7, #34d399)',
-                      transition: 'width 0.4s ease',
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: `${debtPercent}%`,
-                      background: 'linear-gradient(90deg, #fca5a5, #f87171)',
-                      transition: 'width 0.4s ease',
-                    }}
-                  />
-                </div>
-                <div className="grid grid-2 mt-3 text-sm">
-                  <div>
-                    <p className="text-secondary text-xs">Collateral ({collateralPercent.toFixed(1)}%)</p>
-                    <p>{formatToken(totalCollateral.toString())} mETH</p>
-                  </div>
-                  <div>
-                    <p className="text-secondary text-xs">Debt ({debtPercent.toFixed(1)}%)</p>
-                    <p>{formatMUSD(totalDebt.toString())} mUSD</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-secondary text-sm">No collateral or debt recorded yet.</p>
-            )}
-          </div>
+      <div className="card mt-3">
+        <div className="card-header">
+          <h4>Collateral Activity Timeline</h4>
         </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h4>Protocol Ecosystem</h4>
-          </div>
-          <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
-                }}>
-                  {users.length}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p className="text-xs text-secondary">Total Users</p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '11px' }}>
-                    <span style={{ padding: '2px 6px', background: '#34d39920', color: '#34d399', borderRadius: '4px' }}>
-                      {usersWithMUSD} mUSD
-                    </span>
-                    <span style={{ padding: '2px 6px', background: '#6366f120', color: '#6366f1', borderRadius: '4px' }}>
-                      {usersWithSuperStake} SuperStake
-                    </span>
-                    <span style={{ padding: '2px 6px', background: '#f59e0b20', color: '#f59e0b', borderRadius: '4px' }}>
-                      {usersWithLiquidity} LP
-                    </span>
+        <div className="card-body">
+          {data?.musdPositions && data.musdPositions.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {data.musdPositions.slice(0, 10).map((position, index: number) => {
+                const isLock = position.eventType === 'LOCK' || position.eventType === 'LIQUIDATE';
+                const deltaValue = Number(position.deltaCollateral) / 1e18;
+                const totalValue = Number(position.collateralAmount) / 1e18;
+                
+                return (
+                  <div 
+                    key={position.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      background: index % 2 === 0 ? '#1f293710' : 'transparent',
+                      borderRadius: '6px',
+                      borderLeft: `3px solid ${isLock ? '#34d399' : '#f87171'}`
+                    }}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: isLock ? 'linear-gradient(135deg, #34d399, #10b981)' : 'linear-gradient(135deg, #f87171, #ef4444)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                      color: 'white',
+                      flexShrink: 0
+                    }}>
+                      {isLock ? '↑' : '↓'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: isLock ? '#34d399' : '#f87171'
+                        }}>
+                          {position.eventType}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                          {new Date(parseInt(position.lastUpdatedTimestamp) * 1000).toLocaleString()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px' }}>
+                        <span style={{ color: isLock ? '#34d399' : '#f87171', fontWeight: '600' }}>
+                          {isLock ? '+' : ''}{deltaValue.toFixed(4)} mETH
+                        </span>
+                        <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                          → Total: {totalValue.toFixed(4)} mETH
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f59e0b, #f97316)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)'
-                }}>
-                  {pools.length}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p className="text-xs text-secondary">RWA Pools</p>
-                  <p className="text-sm mt-1">{formatMUSD(totalVolume.toString())} mUSD volume</p>
-                </div>
-              </div>
-
-              <div style={{ 
-                marginTop: '8px',
-                padding: '12px',
-                background: 'linear-gradient(135deg, #1f293720, #1f293710)',
-                borderRadius: '8px',
-                border: '1px solid #374151'
-              }}>
-                <p className="text-xs text-secondary mb-2">Protocol Health</p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span>Utilization: <strong>{totalChartValue > 0 ? ((debtChartValue / collateralChartValue) * 100).toFixed(1) : 0}%</strong></span>
-                  <span>Active: <strong>{activeUsers}/{users.length}</strong></span>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          </div>
+          ) : (
+            <p className="text-secondary text-sm">No collateral activity yet</p>
+          )}
         </div>
       </div>
     </div>

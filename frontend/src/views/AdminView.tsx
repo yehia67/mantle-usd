@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { gql, useQuery } from '@apollo/client';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { MUSDAdminPanel } from './admin/MUSDAdminPanel';
@@ -19,6 +18,13 @@ const GET_PROTOCOL_STATS = gql`
       id
       totalVolume
       totalSwaps
+    }
+    musdPositions: mUSDPositions(first: 50, orderBy: lastUpdatedTimestamp, orderDirection: desc) {
+      id
+      eventType
+      collateralAmount
+      deltaCollateral
+      lastUpdatedTimestamp
     }
   }
 `;

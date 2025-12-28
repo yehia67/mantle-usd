@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';

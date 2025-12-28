@@ -22,7 +22,7 @@ export function useRWAPoolFactory() {
       const receipt = await tx.wait();
       
       // Extract pool address from event logs
-      const poolCreatedEvent = receipt.logs.find((log: any) => 
+      const poolCreatedEvent = receipt.logs.find((log: { topics: string[] }) => 
         log.topics[0] === '0x...' // PoolCreated event signature
       );
       

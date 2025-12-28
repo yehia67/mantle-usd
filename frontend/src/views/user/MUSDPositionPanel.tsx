@@ -54,8 +54,8 @@ export function MUSDPositionPanel() {
     try {
       const txHash = await approveMETH();
       showToast(`Approval confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
-    } catch (error: any) {
-      showToast(error.message || 'Approval failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Approval failed', 'error');
     }
   };
 
@@ -73,8 +73,8 @@ export function MUSDPositionPanel() {
         setAmount('');
         setTimeout(() => refetch(), 3000);
       }
-    } catch (error: any) {
-      showToast(error.message || 'Transaction failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Transaction failed', 'error');
     }
   };
 
@@ -149,7 +149,7 @@ export function MUSDPositionPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.user.musdPositions.slice(0, 10).map((position: any) => (
+                    {data.user.musdPositions.map((position: { id: string; eventType: string; collateralAmount: string; debtAmount: string; healthFactor: string; lastUpdatedTimestamp: string }) => (
                       <tr key={position.id}>
                         <td>{position.eventType}</td>
                         <td>{formatToken(position.collateralAmount)} mETH</td>

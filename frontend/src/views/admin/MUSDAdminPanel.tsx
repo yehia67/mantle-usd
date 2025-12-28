@@ -54,8 +54,8 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
         refetch();
         onTransactionComplete?.();
       }, 3000);
-    } catch (error: any) {
-      showToast(error.message || 'Liquidation failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Liquidation failed', 'error');
     }
   };
 
@@ -71,8 +71,8 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
         refetch();
         onTransactionComplete?.();
       }, 3000);
-    } catch (error: any) {
-      showToast(error.message || 'Mint failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Mint failed', 'error');
     }
   };
 
@@ -88,8 +88,8 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
         refetch();
         onTransactionComplete?.();
       }, 3000);
-    } catch (error: any) {
-      showToast(error.message || 'Burn failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Burn failed', 'error');
     }
   };
 
@@ -208,7 +208,7 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
               </tr>
             </thead>
             <tbody>
-              {data?.users?.map((user: any) => {
+              {data?.users?.map((user: { id: string; address: string; musdBalance: string; debtBalance: string; collateralBalance: string; healthFactor: string }) => {
                 const healthFactor = parseFloat(user.healthFactor) / 100;
                 const isLiquidatable = healthFactor < 1.5;
                 

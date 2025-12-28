@@ -55,8 +55,8 @@ export function PoolsAdminPanel({ onTransactionComplete }: PoolsAdminPanelProps)
           onTransactionComplete?.();
         }, 3000);
       }
-    } catch (error: any) {
-      showToast(error.message || 'Pool creation failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Pool creation failed', 'error');
     }
   };
 
@@ -134,7 +134,7 @@ export function PoolsAdminPanel({ onTransactionComplete }: PoolsAdminPanelProps)
               </tr>
             </thead>
             <tbody>
-              {data?.rwapools?.map((pool: any) => (
+              {data?.rwapools?.map((pool: { id: string; assetSymbol: string; reserveMUSD: string; reserveRWA: string; totalLiquidity: string; totalVolume: string; totalSwaps: string; verifier: string }) => (
                 <tr key={pool.id}>
                   <td>{pool.assetSymbol}</td>
                   <td>{formatMUSD(pool.reserveMUSD)} mUSD</td>

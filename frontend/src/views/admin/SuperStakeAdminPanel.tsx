@@ -43,7 +43,7 @@ export function SuperStakeAdminPanel() {
               </tr>
             </thead>
             <tbody>
-              {data?.superStakePositions?.map((position: any) => (
+              {data?.superStakePositions?.map((position: { id: string; user: { address: string }; collateralLocked: string; totalDebtMinted: string; loops: number }) => (
                 <tr key={position.id}>
                   <td>{formatAddress(position.user.address)}</td>
                   <td>{formatToken(position.collateralLocked)} mETH</td>

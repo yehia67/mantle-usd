@@ -6,10 +6,11 @@ import { parseMUSD, parseToken } from '@/utils/decimals';
 import RWAPOOL_ABI from '@/abis/RWAPool.json';
 import ERC20_ABI from '@/abis/ERC20.json';
 
-export function useRWAPool(poolAddress: string) {
+export function useRWAPool(poolAddress: string, tokenInAddress?: string) {
   const { address } = useAppKitAccount();
   const poolContract = useContract(poolAddress, RWAPOOL_ABI);
   const musdContract = useContract(CONTRACT_ADDRESSES.mUSD, ERC20_ABI);
+  const tokenInContract = useContract(tokenInAddress || CONTRACT_ADDRESSES.mUSD, ERC20_ABI);
   const [loading, setLoading] = useState(false);
 
   const swap = async (
@@ -26,7 +27,7 @@ export function useRWAPool(poolAddress: string) {
     setLoading(true);
     try {
       // Approve token if needed
-      const tokenContract = useContract(tokenIn, ERC20_ABI);
+      const tokenContract = tokenInContract;
       if (tokenContract && address) {
         const token = await tokenContract.write();
         // Use appropriate decimals based on token (mUSD = 6, RWA = 18)

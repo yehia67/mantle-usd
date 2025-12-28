@@ -40,7 +40,7 @@ export function SuperStakeUserPanel() {
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
   const { showToast } = useToast();
   
-  const { data, loading, refetch } = useQuery(GET_SUPERSTAKE_POSITION, {
+  const { data, refetch } = useQuery(GET_SUPERSTAKE_POSITION, {
     variables: { userId: address?.toLowerCase() },
     skip: !address,
   });
@@ -72,8 +72,8 @@ export function SuperStakeUserPanel() {
     try {
       const txHash = action === 'deposit' ? await approveMETH() : await approveMUSD();
       showToast(`Approval confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
-    } catch (error: any) {
-      showToast(error.message || 'Approval failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Approval failed', 'error');
     }
   };
 
@@ -91,8 +91,8 @@ export function SuperStakeUserPanel() {
         setAmount('');
         setTimeout(() => refetch(), 3000);
       }
-    } catch (error: any) {
-      showToast(error.message || 'Transaction failed', 'error');
+    } catch (error) {
+      showToast((error as Error).message || 'Transaction failed', 'error');
     }
   };
 
@@ -213,33 +213,23 @@ export function SuperStakeUserPanel() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((entry: any) => (
-                  <tr key={entry.id}>
+                {history.map((event: { id: string; eventType: string; collateralAmount: string; debtAmount: string; loops: number; timestamp: string }) => (
+                  <tr key={event.id}>
                     <td>
                       <span className={`badge ${
-                        entry.eventType === 'OPEN' ? 'badge-success' : 
-                        entry.eventType === 'CLOSE' ? 'badge-danger' : 
-                        entry.eventType === 'DEPOSIT' ? 'badge-info' : 
+                        event.eventType === 'OPEN' ? 'badge-success' : 
+                        event.eventType === 'CLOSE' ? 'badge-danger' : 
+                        event.eventType === 'DEPOSIT' ? 'badge-info' : 
                         'badge-warning'
                       }`}>
-                        {entry.eventType}
+                        {event.eventType}
                       </span>
                     </td>
-                    <td>
-                      {formatToken(entry.collateralAmount)} mETH
-                      <span className="text-xs text-secondary ml-1">
-                        ({entry.deltaCollateral >= 0 ? '+' : ''}{formatToken(entry.deltaCollateral)})
-                      </span>
-                    </td>
-                    <td>
-                      {formatMUSD(entry.debtAmount)} mUSD
-                      <span className="text-xs text-secondary ml-1">
-                        ({entry.deltaDebt >= 0 ? '+' : ''}{formatMUSD(entry.deltaDebt)})
-                      </span>
-                    </td>
-                    <td>{entry.loops}x</td>
+                    <td>{formatToken(event.collateralAmount)} mETH</td>
+                    <td>{formatMUSD(event.debtAmount)} mUSD</td>
+                    <td>{event.loops}x</td>
                     <td className="text-xs">
-                      {new Date(parseInt(entry.timestamp) * 1000).toLocaleString()}
+                      {new Date(parseInt(event.timestamp) * 1000).toLocaleString()}
                     </td>
                   </tr>
                 ))}
