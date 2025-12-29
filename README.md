@@ -35,7 +35,7 @@ The protocol consists of:
   [https://sepolia.mantlescan.xyz/address/0x35cc0a5400D745EE96B082a9c70Cf7de44FAAFD3](https://sepolia.mantlescan.xyz/address/0x35cc0a5400D745EE96B082a9c70Cf7de44FAAFD3)
 
 * **ZK Verifier (Boundless / RISC Zero)**
-  [https://sepolia.mantlescan.xyz/address/0x3760da9653cc7f653ffe664ba4cc3a3f7f3b3ea2](https://sepolia.mantlescan.xyz/address/0x3760da9653cc7f653ffe664ba4cc3a3f7f3b3ea2)
+  [https://sepolia.mantlescan.xyz/address/0xDBCf221465348424E6e30c95Ff8c3837427A191c](https://sepolia.mantlescan.xyz/address/0xDBCf221465348424E6e30c95Ff8c3837427A191c)
 
 * **Boundless Network Verifier (Ethereum Sepolia)**
   [https://sepolia.etherscan.io/address/0xc211b581cB62e3a6D396A592Bab34979E1bBBA7D](https://sepolia.etherscan.io/address/0xc211b581cB62e3a6D396A592Bab34979E1bBBA7D)
@@ -50,7 +50,7 @@ The protocol consists of:
   [https://sepolia.mantlescan.xyz/address/0x915b4a846bD04180F044214a15446eBd680a64D7](https://sepolia.mantlescan.xyz/address/0x915b4a846bD04180F044214a15446eBd680a64D7)
 
 * **RWA Pool Factory**
-  [https://sepolia.mantlescan.xyz/address/0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1](https://sepolia.mantlescan.xyz/address/0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1)
+  [https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC](https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC)
 
 ### Mantle Subgraph & GraphQL
 

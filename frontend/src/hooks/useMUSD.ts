@@ -135,15 +135,39 @@ export function useMUSD() {
     }
   };
 
+  const getHealthFactor = async (userAddress: string): Promise<number> => {
+    if (!musdContract) return 0;
+    
+    try {
+      const healthFactorBigInt = await musdContract.read.getHealthFactor(userAddress);
+      // Contract returns health factor as percentage (e.g., 150 for 1.5x)
+      return Number(healthFactorBigInt) / 100;
+    } catch (error) {
+      console.error('Error getting health factor:', error);
+      return 0;
+    }
+  };
+
+  const isLiquidatable = async (userAddress: string): Promise<boolean> => {
+    if (!musdContract) return false;
+    
+    try {
+      return await musdContract.read.isLiquidatable(userAddress);
+    } catch (error) {
+      console.error('Error checking liquidatable:', error);
+      return false;
+    }
+  };
+
   return {
     lockCollateral,
     unlockCollateral,
-    mint,
-    burn,
     liquidate,
     setCollateralPrice,
     checkApproval,
     approveMETH,
+    getHealthFactor,
+    isLiquidatable,
     needsApproval,
     loading,
   };

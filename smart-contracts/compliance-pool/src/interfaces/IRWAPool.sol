@@ -47,6 +47,9 @@ interface IRWAPool {
         pure
         returns (uint256 amountOut);
 
+    function setAllowedImageId(bytes32 newImageId) external;
+    function setVerifier(address newVerifier) external;
+
     function liquidityBalances(address provider) external view returns (uint256);
     function reserveMUSD() external view returns (uint256);
     function reserveRWA() external view returns (uint256);

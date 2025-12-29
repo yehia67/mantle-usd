@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { gql, useQuery } from '@apollo/client';
 import { formatMUSD, formatToken, formatAddress } from '@/utils/format';
 import { useMUSD } from '@/hooks/useMUSD';
 import { useERC20 } from '@/hooks/useERC20';
 import { useToast } from '@/components/Toast';
+import { ASSETS } from '@/config/constants';
 
 const GET_ALL_USERS = gql`
   query GetAllUsers {
@@ -26,7 +27,9 @@ interface MUSDAdminPanelProps {
 
 export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
   const { data, loading, refetch } = useQuery(GET_ALL_USERS);
-  const { liquidate, setCollateralPrice, loading: musdLoading } = useMUSD();
+  const { liquidate, setCollateralPrice, getHealthFactor, isLiquidatable, loading: musdLoading } = useMUSD();
+  const [userHealthFactors, setUserHealthFactors] = useState<Record<string, number>>({});
+  const [userLiquidatable, setUserLiquidatable] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
   const [showMintForm, setShowMintForm] = useState(false);
   const [showBurnForm, setShowBurnForm] = useState(false);
@@ -36,16 +39,38 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
   const [collateralPrice, setCollateralPriceInput] = useState('2000');
   const [selectedAsset, setSelectedAsset] = useState('mETH');
 
-  const ASSETS = [
-    { name: 'mETH', address: '0xdd37c9e2237506273f86da1272ca51470df6e8ae' },
-    { name: 'Gold', address: '0x4ABD994Dd8e6581d909A6AcEf82e453d3E141d65' },
-    { name: 'Real Estate Share', address: '0x7e086BeC259f8A7c02B4324e9e2dA149b4cD3784' },
-    { name: 'Money Market Share', address: '0x7e086BeC259f8A7c02B4324e9e2dA149b4cD3784' },
-  ];
 
   const selectedAssetAddress = ASSETS.find(a => a.name === selectedAsset)?.address || ASSETS[0].address;
   const { mint, burn, loading: tokenLoading } = useERC20(selectedAssetAddress);
   const txLoading = musdLoading || tokenLoading;
+
+  // Fetch real-time health factors and liquidatable status from contract
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!data?.users) return;
+      
+      const healthFactors: Record<string, number> = {};
+      const liquidatableStatus: Record<string, boolean> = {};
+      
+      for (const user of data.users) {
+        try {
+          const [hf, isLiq] = await Promise.all([
+            getHealthFactor(user.address),
+            isLiquidatable(user.address)
+          ]);
+          healthFactors[user.address] = hf;
+          liquidatableStatus[user.address] = isLiq;
+        } catch (error) {
+          console.error(`Error fetching data for ${user.address}:`, error);
+        }
+      }
+      
+      setUserHealthFactors(healthFactors);
+      setUserLiquidatable(liquidatableStatus);
+    };
+    
+    fetchUserData();
+  }, [data?.users, getHealthFactor, isLiquidatable]);
 
   const handleLiquidate = async (userAddress: string) => {
     try {
@@ -139,7 +164,6 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
               type="number"
               value={collateralPrice}
               onChange={(e) => setCollateralPriceInput(e.target.value)}
-              placeholder="2000"
             />
           </div>
           <button className="btn-primary" onClick={handleSetPrice} disabled={!collateralPrice || txLoading}>
@@ -248,8 +272,14 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
             </thead>
             <tbody>
               {data?.users?.map((user: { id: string; address: string; musdBalance: string; debtBalance: string; collateralBalance: string; healthFactor: string }) => {
-                const healthFactor = parseFloat(user.healthFactor) / 100;
-                const isLiquidatable = healthFactor < 1.5;
+                // Use real-time data from contract, fallback to cached subgraph data
+                const healthFactor = userHealthFactors[user.address] ?? (parseFloat(user.healthFactor) / 100);
+                const isLiquidatableNow = userLiquidatable[user.address] ?? false;
+                
+                // Check if position is liquidated (no debt and no collateral)
+                const debt = parseFloat(user.debtBalance);
+                const collateral = parseFloat(user.collateralBalance);
+                const isLiquidated = debt === 0 && collateral === 0;
                 
                 return (
                   <tr key={user.id}>
@@ -258,26 +288,33 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
                     <td>{formatMUSD(user.debtBalance)} mUSD</td>
                     <td>{formatToken(user.collateralBalance)} mETH</td>
                     <td>
-                      <span className={healthFactor < 1.5 ? 'badge badge-danger' : healthFactor < 2 ? 'badge badge-warning' : 'badge badge-success'}>
-                        {healthFactor.toFixed(2)}
-                      </span>
+                      {isLiquidated ? (
+                        <span className="badge badge-secondary">Liquidated</span>
+                      ) : (
+                        <span className={healthFactor < 1.5 ? 'badge badge-danger' : healthFactor < 2 ? 'badge badge-warning' : 'badge badge-success'}>
+                          {healthFactor.toFixed(2)}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      {isLiquidatable ? (
+                      {isLiquidated ? (
+                        <span className="badge badge-secondary">Liquidated</span>
+                      ) : isLiquidatableNow ? (
                         <span className="badge badge-danger">Liquidatable</span>
                       ) : (
                         <span className="badge badge-success">Healthy</span>
                       )}
                     </td>
                     <td>
-                      <button 
-                        className={isLiquidatable ? "btn-sm btn-danger" : "btn-sm btn-outline"}
-                        onClick={() => handleLiquidate(user.address)}
-                        disabled={!isLiquidatable || txLoading}
-                        style={{ opacity: !isLiquidatable ? 0.5 : 1 }}
-                      >
-                        {txLoading ? 'Processing...' : 'Liquidate'}
-                      </button>
+                      {isLiquidatableNow && (
+                        <button 
+                          className="btn-sm btn-danger" 
+                          onClick={() => handleLiquidate(user.address)}
+                          disabled={txLoading}
+                        >
+                          {txLoading ? 'Processing...' : 'Liquidate'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
