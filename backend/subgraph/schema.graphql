@@ -1,0 +1,104 @@
+type User @entity(immutable: false) {
+  id: ID!
+  address: Bytes!
+  musdBalance: BigInt!
+  debtBalance: BigInt!
+  collateralBalance: BigInt!
+  healthFactor: BigDecimal!
+  musdPositions: [mUSDPosition!]! @derivedFrom(field: "user")
+  liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "user")
+  swaps: [RWASwap!]! @derivedFrom(field: "user")
+  superstakePosition: SuperStakePosition
+}
+
+type mUSDPosition @entity(immutable: false) {
+  id: ID!
+  user: User!
+  collateralAmount: BigInt!
+  debtAmount: BigInt!
+  deltaCollateral: BigInt!
+  deltaDebt: BigInt!
+  eventType: String!
+  healthFactor: BigDecimal!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type SuperStakePosition @entity(immutable: false) {
+  id: ID!
+  user: User!
+  collateralLocked: BigInt!
+  totalDebtMinted: BigInt!
+  loops: Int!
+  active: Boolean!
+  openedAtBlock: BigInt!
+  openedAtTimestamp: BigInt!
+  updatedAtBlock: BigInt!
+  updatedAtTimestamp: BigInt!
+  closedAtBlock: BigInt
+  closedAtTimestamp: BigInt
+}
+
+type RWAPool @entity(immutable: false) {
+  id: ID!
+  poolAddress: Bytes!
+  musdToken: Bytes!
+  rwaToken: Bytes!
+  assetSymbol: String!
+  verifier: Bytes!
+  policyId: Bytes!
+  reserveMUSD: BigInt!
+  reserveRWA: BigInt!
+  totalLiquidity: BigInt!
+  totalVolume: BigInt!
+  totalSwaps: BigInt!
+  createdAtBlock: BigInt!
+  createdAtTimestamp: BigInt!
+  liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "pool")
+  swaps: [RWASwap!]! @derivedFrom(field: "pool")
+}
+
+type RWASwap @entity(immutable: false) {
+  id: ID!
+  pool: RWAPool!
+  user: User!
+  tokenIn: Bytes!
+  tokenOut: Bytes!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  txHash: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+}
+
+type LiquidityPosition @entity(immutable: false) {
+  id: ID!
+  user: User!
+  pool: RWAPool!
+  liquidityProvided: BigInt!
+  amountMUSD: BigInt!
+  amountRWA: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type ProtocolStats @entity(immutable: false) {
+  id: ID!
+  totalSupply: BigInt!
+  totalDebt: BigInt!
+  totalCollateral: BigInt!
+  activeUsers: Int!
+  totalPools: Int!
+  totalVolume: BigInt!
+  totalSwaps: BigInt!
+  collateralAsset: Bytes
+  mintPercentageBps: Int
+  collateralPriceUsd: BigInt
+  minHealthFactor: BigInt
+  superstakeMusd: Bytes
+  superstakeMeth: Bytes
+  superstakeSwapper: Bytes
+  superstakeMaxLoops: Int
+  updatedAtBlock: BigInt!
+  updatedAtTimestamp: BigInt!
+}
