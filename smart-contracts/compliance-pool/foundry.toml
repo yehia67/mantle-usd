@@ -1,0 +1,12 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+allow_paths = ["../../third-parties"]
+remappings = [
+    "risc0-ethereum/=../../third-parties/risc0-ethereum/",
+    "openzeppelin-contracts/=lib/openzeppelin-contracts/"
+]
+
+[profile.ci.fuzz]
+runs = 10_000
