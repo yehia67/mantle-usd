@@ -26,11 +26,20 @@ const GET_USER_DATA = gql`
   }
 `;
 
+const GET_PROTOCOL_STATS = gql`
+  query GetProtocolStats {
+    protocolStats(id: "protocol") {
+      totalSupply
+      totalDebt
+      totalCollateral
+    }
+  }
+`;
+
 export function UserDashboard() {
   const { address } = useAppKitAccount();
-  const { data, loading, error } = useQuery(GET_USER_DATA, {
-    variables: { id: address?.toLowerCase() },
-    skip: !address,
+  const { data, loading, error } = useQuery(address ? GET_USER_DATA : GET_PROTOCOL_STATS, {
+    variables: address ? { id: address.toLowerCase() } : undefined,
   });
   
   const mETHContract = useContract(CONTRACT_ADDRESSES.mETH, ERC20_ABI);
@@ -64,10 +73,36 @@ export function UserDashboard() {
     fetchBalances();
   }, [address, mETHContract, musdContract]);
 
+  const protocolStats = data?.protocolStats;
+
   if (!address) {
     return (
-      <div className="card">
-        <p className="text-secondary">Connect wallet to view dashboard</p>
+      <div>
+        <h2 className="mb-3">Protocol Overview</h2>
+        <div className="card mb-3" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107' }}>
+          <p className="text-secondary" style={{ margin: 0 }}>
+            ℹ️ Connect your wallet to view your personal dashboard and interact with the protocol
+          </p>
+        </div>
+        {protocolStats && (
+          <div className="grid grid-3">
+            <StatCard 
+              label="Total Supply" 
+              value={formatMUSD(protocolStats.totalSupply || '0')} 
+              suffix="mUSD"
+            />
+            <StatCard 
+              label="Total Debt" 
+              value={formatMUSD(protocolStats.totalDebt || '0')} 
+              suffix="mUSD"
+            />
+            <StatCard 
+              label="Total Collateral" 
+              value={formatToken(protocolStats.totalCollateral || '0')} 
+              suffix="mETH"
+            />
+          </div>
+        )}
       </div>
     );
   }

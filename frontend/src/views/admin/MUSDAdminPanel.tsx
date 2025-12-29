@@ -26,12 +26,14 @@ interface MUSDAdminPanelProps {
 
 export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
   const { data, loading, refetch } = useQuery(GET_ALL_USERS);
-  const { liquidate, loading: musdLoading } = useMUSD();
+  const { liquidate, setCollateralPrice, loading: musdLoading } = useMUSD();
   const { showToast } = useToast();
   const [showMintForm, setShowMintForm] = useState(false);
   const [showBurnForm, setShowBurnForm] = useState(false);
+  const [showPriceForm, setShowPriceForm] = useState(false);
   const [targetAddress, setTargetAddress] = useState('');
   const [amount, setAmount] = useState('');
+  const [collateralPrice, setCollateralPriceInput] = useState('2000');
   const [selectedAsset, setSelectedAsset] = useState('mETH');
 
   const ASSETS = [
@@ -93,12 +95,30 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
     }
   };
 
+  const handleSetPrice = async () => {
+    if (!collateralPrice) return;
+    try {
+      const txHash = await setCollateralPrice(collateralPrice);
+      showToast(`Collateral price set to $${collateralPrice}! Hash: ${txHash.slice(0, 10)}...`, 'success');
+      setShowPriceForm(false);
+      setTimeout(() => {
+        refetch();
+        onTransactionComplete?.();
+      }, 3000);
+    } catch (error) {
+      showToast((error as Error).message || 'Price update failed', 'error');
+    }
+  };
+
   return (
     <div className="card">
       <div className="card-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3>mUSD Monitoring & Liquidation</h3>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-sm btn-primary" onClick={() => setShowPriceForm(!showPriceForm)}>
+              {showPriceForm ? 'Cancel' : 'Set Price'}
+            </button>
             <button className="btn-sm btn-primary" onClick={() => setShowMintForm(!showMintForm)}>
               {showMintForm ? 'Cancel' : 'Mint Asset'}
             </button>
@@ -108,6 +128,25 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
           </div>
         </div>
       </div>
+
+      {showPriceForm && (
+        <div className="mb-3" style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius)' }}>
+          <h4 className="mb-2">Set Collateral Price (mETH)</h4>
+          <p className="text-sm text-secondary mb-2">Set the USD price of mETH collateral (affects liquidation thresholds)</p>
+          <div className="input-group mb-2">
+            <label>Price in USD</label>
+            <input
+              type="number"
+              value={collateralPrice}
+              onChange={(e) => setCollateralPriceInput(e.target.value)}
+              placeholder="2000"
+            />
+          </div>
+          <button className="btn-primary" onClick={handleSetPrice} disabled={!collateralPrice || txLoading}>
+            {txLoading ? 'Processing...' : 'Set Price'}
+          </button>
+        </div>
+      )}
 
       {showMintForm && (
         <div className="mb-3" style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius)' }}>
@@ -231,15 +270,14 @@ export function MUSDAdminPanel({ onTransactionComplete }: MUSDAdminPanelProps) {
                       )}
                     </td>
                     <td>
-                      {isLiquidatable && (
-                        <button 
-                          className="btn-sm btn-outline"
-                          onClick={() => handleLiquidate(user.address)}
-                          disabled={txLoading}
-                        >
-                          {txLoading ? 'Processing...' : 'Liquidate'}
-                        </button>
-                      )}
+                      <button 
+                        className={isLiquidatable ? "btn-sm btn-danger" : "btn-sm btn-outline"}
+                        onClick={() => handleLiquidate(user.address)}
+                        disabled={!isLiquidatable || txLoading}
+                        style={{ opacity: !isLiquidatable ? 0.5 : 1 }}
+                      >
+                        {txLoading ? 'Processing...' : 'Liquidate'}
+                      </button>
                     </td>
                   </tr>
                 );

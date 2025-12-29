@@ -36,8 +36,8 @@ const GET_SUPERSTAKE_POSITION = gql`
 export function SuperStakeUserPanel() {
   const { address } = useAppKitAccount();
   const [amount, setAmount] = useState('');
-  const [loops, setLoops] = useState('1');
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
+  const loops = '3'; // Fixed at 3 loops
   const { showToast } = useToast();
   
   const { data, refetch } = useQuery(GET_SUPERSTAKE_POSITION, {
@@ -174,19 +174,6 @@ export function SuperStakeUserPanel() {
         </div>
       </div>
 
-      {action === 'deposit' && (
-        <div className="input-group">
-          <label>Leverage Loops (1-3)</label>
-          <input
-            type="number"
-            value={loops}
-            onChange={(e) => setLoops(e.target.value)}
-            min="1"
-            max="3"
-            placeholder="1"
-          />
-        </div>
-      )}
 
       {((action === 'deposit' && needsApprovalMETH) || (action === 'withdraw' && needsApprovalMUSD)) ? (
         <button className="btn-primary" onClick={handleApprove} disabled={!amount || !address || txLoading}>

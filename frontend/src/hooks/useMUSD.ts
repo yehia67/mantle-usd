@@ -119,12 +119,29 @@ export function useMUSD() {
     }
   };
 
+  const setCollateralPrice = async (priceUsd: string) => {
+    if (!musdContract) throw new Error('Not connected');
+    
+    setLoading(true);
+    try {
+      const musd = await musdContract.write();
+      // Price in 1e18 precision
+      const priceWei = parseToken(priceUsd);
+      const tx = await musd.setCollateralPriceUsd(priceWei);
+      await tx.wait();
+      return tx.hash;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     lockCollateral,
     unlockCollateral,
     mint,
     burn,
     liquidate,
+    setCollateralPrice,
     checkApproval,
     approveMETH,
     needsApproval,
