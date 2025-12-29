@@ -108,8 +108,12 @@ export function calculateHealthFactor(collateral: BigInt, debt: BigInt, collater
     return ZERO_BD
   }
 
+  // Convert mUSD debt from 6 decimals to 18 decimals (multiply by 1e12)
+  // This matches the contract's calculation: debtIn18Decimals = debt * 1e12
+  const debtIn18Decimals = debt.times(BigInt.fromString('1000000000000'))
+  
   const numerator = collateralValueUsd.times(PERCENTAGE_SCALE)
-  return numerator.toBigDecimal().div(debt.toBigDecimal())
+  return numerator.toBigDecimal().div(debtIn18Decimals.toBigDecimal())
 }
 
 export function createMUSDPositionSnapshot(

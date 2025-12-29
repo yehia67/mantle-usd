@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {RWAPool} from "../src/RWAPool.sol";
+import {IRWAPool} from "../src/interfaces/IRWAPool.sol";
 import {MockERC20} from "./helpers/MockERC20.sol";
 
 contract RWAPoolTest is Test {
@@ -59,18 +60,18 @@ contract RWAPoolTest is Test {
     }
 
     function testConstructorRevertsOnZeroAddress() public {
-        vm.expectRevert(RWAPool.ZeroAddress.selector);
+        vm.expectRevert(IRWAPool.ZeroAddress.selector);
         new RWAPool(address(0), address(rwaToken), address(verifier), IMAGE_ID);
 
-        vm.expectRevert(RWAPool.ZeroAddress.selector);
+        vm.expectRevert(IRWAPool.ZeroAddress.selector);
         new RWAPool(address(mUSD), address(0), address(verifier), IMAGE_ID);
 
-        vm.expectRevert(RWAPool.ZeroAddress.selector);
+        vm.expectRevert(IRWAPool.ZeroAddress.selector);
         new RWAPool(address(mUSD), address(rwaToken), address(0), IMAGE_ID);
     }
 
     function testConstructorRevertsOnInvalidImageId() public {
-        vm.expectRevert(RWAPool.InvalidImageId.selector);
+        vm.expectRevert(IRWAPool.InvalidImageId.selector);
         new RWAPool(address(mUSD), address(rwaToken), address(verifier), bytes32(0));
     }
 
@@ -109,11 +110,11 @@ contract RWAPoolTest is Test {
 
     function testAddLiquidityRevertsOnZeroAmount() public {
         vm.prank(alice);
-        vm.expectRevert(RWAPool.ZeroAmount.selector);
+        vm.expectRevert(IRWAPool.ZeroAmount.selector);
         pool.addLiquidity(0, 1000 ether, 0);
 
         vm.prank(alice);
-        vm.expectRevert(RWAPool.ZeroAmount.selector);
+        vm.expectRevert(IRWAPool.ZeroAmount.selector);
         pool.addLiquidity(1000 ether, 0, 0);
     }
 
@@ -144,7 +145,7 @@ contract RWAPoolTest is Test {
         pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(alice);
-        vm.expectRevert(RWAPool.ZeroAmount.selector);
+        vm.expectRevert(IRWAPool.ZeroAmount.selector);
         pool.removeLiquidity(0, 0, 0);
     }
 
@@ -153,7 +154,7 @@ contract RWAPoolTest is Test {
         uint256 liquidity = pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.InsufficientLiquidity.selector);
+        vm.expectRevert(IRWAPool.InsufficientLiquidity.selector);
         pool.removeLiquidity(liquidity, 0, 0);
     }
 
@@ -228,7 +229,7 @@ contract RWAPoolTest is Test {
         pool.addLiquidity(1000 ether, 1000 ether, 0);
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.ZeroAmount.selector);
+        vm.expectRevert(IRWAPool.ZeroAmount.selector);
         pool.swap(
             address(mUSD),
             address(rwaToken),
@@ -247,7 +248,7 @@ contract RWAPoolTest is Test {
         bytes32 wrongImageId = keccak256("wrong_image_id");
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.InvalidImageId.selector);
+        vm.expectRevert(IRWAPool.InvalidImageId.selector);
         pool.swap(
             address(mUSD),
             address(rwaToken),
@@ -295,7 +296,7 @@ contract RWAPoolTest is Test {
         );
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.InvalidToken.selector);
+        vm.expectRevert(IRWAPool.InvalidToken.selector);
         pool.swap(
             invalidToken,
             address(rwaToken),
@@ -321,7 +322,7 @@ contract RWAPoolTest is Test {
         );
 
         vm.prank(bob);
-        vm.expectRevert(RWAPool.SlippageExceeded.selector);
+        vm.expectRevert(IRWAPool.SlippageExceeded.selector);
         pool.swap(
             address(mUSD),
             address(rwaToken),

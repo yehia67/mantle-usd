@@ -20,10 +20,19 @@ The protocol consists of:
 ### Standard / Mock Contracts (Test Utilities)
 
 * **mETH (Mock Collateral Token)**
-  [https://sepolia.mantlescan.xyz/address/0xdd37c9e2237506273f86da1272ca51470df6e8ae](https://sepolia.mantlescan.xyz/address/0xdd37c9e2237506273f86da1272ca51470df6e8ae)
+  [https://sepolia.mantlescan.xyz/address/0xDd37c9e2237506273F86dA1272Ca51470dF6e8ae](https://sepolia.mantlescan.xyz/address/0xDd37c9e2237506273F86dA1272Ca51470dF6e8ae)
+
+  * **Gold (Mock RWA Token)**
+  [https://sepolia.mantlescan.xyz/address/0x4ABD994Dd8e6581d909A6AcEf82e453d3E141d65](https://sepolia.mantlescan.xyz/address/0x4ABD994Dd8e6581d909A6AcEf82e453d3E141d65)
+
+  * **Real Estate  Share (Mock RWA Token)**
+  [https://sepolia.mantlescan.xyz/address/0x4B55670F4D1e6E2dcafC975931e7BeFeF73cFC53](https://sepolia.mantlescan.xyz/address/0x4B55670F4D1e6E2dcafC975931e7BeFeF73cFC53)
+
+  * **Money Market Share (Mock RWA Token)**
+  [https://sepolia.mantlescan.xyz/address/0x8D2D9cf7750C88881E12A33D6e305640CDBf020a](https://sepolia.mantlescan.xyz/address/0x8D2D9cf7750C88881E12A33D6e305640CDBf020a)
 
 * **Swapper (DEX / Swap Router Mock)**
-  [https://sepolia.mantlescan.xyz/address/0x25056e9611ff37988D25e8D00148EE85D85093b9](https://sepolia.mantlescan.xyz/address/0x25056e9611ff37988D25e8D00148EE85D85093b9)
+  [https://sepolia.mantlescan.xyz/address/0x35cc0a5400D745EE96B082a9c70Cf7de44FAAFD3](https://sepolia.mantlescan.xyz/address/0x35cc0a5400D745EE96B082a9c70Cf7de44FAAFD3)
 
 * **ZK Verifier (Boundless / RISC Zero)**
   [https://sepolia.mantlescan.xyz/address/0x3760da9653cc7f653ffe664ba4cc3a3f7f3b3ea2](https://sepolia.mantlescan.xyz/address/0x3760da9653cc7f653ffe664ba4cc3a3f7f3b3ea2)
@@ -35,13 +44,13 @@ The protocol consists of:
 ### Platform Contracts
 
 * **mUSD Core Contract**
-  [https://sepolia.mantlescan.xyz/address/0x769Ac3DFC4464481847d82dC9afA3399b9489821](https://sepolia.mantlescan.xyz/address/0x769Ac3DFC4464481847d82dC9afA3399b9489821)
+  [https://sepolia.mantlescan.xyz/address/0x1ADE47C51C4850EcAc5F46Bb9C86835dc2EB5354](https://sepolia.mantlescan.xyz/address/0x1ADE47C51C4850EcAc5F46Bb9C86835dc2EB5354)
 
 * **Super-Stake Contract**
-  [https://sepolia.mantlescan.xyz/address/0x51377d22096C7CB25b20622Ec33804dc132BDfF6](https://sepolia.mantlescan.xyz/address/0x51377d22096C7CB25b20622Ec33804dc132BDfF6)
+  [https://sepolia.mantlescan.xyz/address/0x915b4a846bD04180F044214a15446eBd680a64D7](https://sepolia.mantlescan.xyz/address/0x915b4a846bD04180F044214a15446eBd680a64D7)
 
 * **RWA Pool Factory**
-  [https://sepolia.mantlescan.xyz/address/0x1BD389dC8436B1b7BA5796abB6c78b4F89dbfC51](https://sepolia.mantlescan.xyz/address/0x1BD389dC8436B1b7BA5796abB6c78b4F89dbfC51)
+  [https://sepolia.mantlescan.xyz/address/0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1](https://sepolia.mantlescan.xyz/address/0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1)
 
 ### Mantle Subgraph & GraphQL
 
@@ -50,6 +59,17 @@ The protocol consists of:
 
 * **GraphQL Endpoint**
   [https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn](https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn)
+
+### Platform Setup Script
+
+To run the end-to-end platform configuration on Mantle Sepolia:
+
+```bash
+cd smart-contracts/mUSD
+forge script script/Setup.s.sol:SetupScript \
+  --rpc-url https://rpc.sepolia.mantle.xyz \
+  --broadcast
+```
 
 
 

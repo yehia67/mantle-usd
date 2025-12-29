@@ -1,0 +1,38 @@
+[
+  {
+    "type": "function",
+    "name": "createPool",
+    "inputs": [
+      {"name": "_mUSD", "type": "address"},
+      {"name": "_rwaToken", "type": "address"},
+      {"name": "_verifier", "type": "address"},
+      {"name": "_allowedImageId", "type": "bytes32"}
+    ],
+    "outputs": [{"name": "pool", "type": "address"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getPoolByPair",
+    "inputs": [
+      {"name": "tokenA", "type": "address"},
+      {"name": "tokenB", "type": "address"}
+    ],
+    "outputs": [{"name": "pool", "type": "address"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allPools",
+    "inputs": [{"name": "", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allPoolsLength",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  }
+]

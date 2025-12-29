@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {RWAPoolFactory} from "../src/RWAPoolFactory.sol";
+import {IRWAPoolFactory} from "../src/interfaces/IRWAPoolFactory.sol";
 import {RWAPool} from "../src/RWAPool.sol";
 import {MockERC20} from "./helpers/MockERC20.sol";
 
@@ -37,7 +38,7 @@ contract RWAPoolFactoryTest is Test {
 
     function testCreatePoolEmitsEvent() public {
         vm.expectEmit(false, true, true, true);
-        emit RWAPoolFactory.PoolCreated(address(0), address(mUSD), address(rwaToken1), address(verifier), imageId, 0);
+        emit IRWAPoolFactory.PoolCreated(address(0), address(mUSD), address(rwaToken1), address(verifier), imageId, 0);
 
         vm.prank(DEPLOYER);
         factory.createPool(address(mUSD), address(rwaToken1), address(verifier), imageId);
@@ -82,7 +83,7 @@ contract RWAPoolFactoryTest is Test {
         vm.startPrank(DEPLOYER);
         factory.createPool(address(mUSD), address(rwaToken1), address(verifier), imageId);
 
-        vm.expectRevert(RWAPoolFactory.PoolAlreadyExists.selector);
+        vm.expectRevert(IRWAPoolFactory.PoolAlreadyExists.selector);
         factory.createPool(address(mUSD), address(rwaToken1), address(verifier), imageId);
         vm.stopPrank();
     }
@@ -91,7 +92,7 @@ contract RWAPoolFactoryTest is Test {
         vm.startPrank(DEPLOYER);
         factory.createPool(address(mUSD), address(rwaToken1), address(verifier), imageId);
 
-        vm.expectRevert(RWAPoolFactory.PoolAlreadyExists.selector);
+        vm.expectRevert(IRWAPoolFactory.PoolAlreadyExists.selector);
         factory.createPool(address(rwaToken1), address(mUSD), address(verifier), imageId);
         vm.stopPrank();
     }
@@ -99,13 +100,13 @@ contract RWAPoolFactoryTest is Test {
     function testCannotCreatePoolWithZeroAddress() public {
         vm.startPrank(DEPLOYER);
 
-        vm.expectRevert(RWAPoolFactory.ZeroAddress.selector);
+        vm.expectRevert(IRWAPoolFactory.ZeroAddress.selector);
         factory.createPool(address(0), address(rwaToken1), address(verifier), imageId);
 
-        vm.expectRevert(RWAPoolFactory.ZeroAddress.selector);
+        vm.expectRevert(IRWAPoolFactory.ZeroAddress.selector);
         factory.createPool(address(mUSD), address(0), address(verifier), imageId);
 
-        vm.expectRevert(RWAPoolFactory.ZeroAddress.selector);
+        vm.expectRevert(IRWAPoolFactory.ZeroAddress.selector);
         factory.createPool(address(mUSD), address(rwaToken1), address(0), imageId);
 
         vm.stopPrank();
@@ -113,13 +114,13 @@ contract RWAPoolFactoryTest is Test {
 
     function testCannotCreatePoolWithZeroImageId() public {
         vm.prank(DEPLOYER);
-        vm.expectRevert(RWAPoolFactory.InvalidImageId.selector);
+        vm.expectRevert(IRWAPoolFactory.InvalidImageId.selector);
         factory.createPool(address(mUSD), address(rwaToken1), address(verifier), bytes32(0));
     }
 
     function testCannotCreatePoolWithIdenticalTokens() public {
         vm.prank(DEPLOYER);
-        vm.expectRevert(RWAPoolFactory.IdenticalAddresses.selector);
+        vm.expectRevert(IRWAPoolFactory.IdenticalAddresses.selector);
         factory.createPool(address(mUSD), address(mUSD), address(verifier), imageId);
     }
 
@@ -146,7 +147,7 @@ contract RWAPoolFactoryTest is Test {
     }
 
     function testGetPoolAtIndexOutOfBounds() public {
-        vm.expectRevert(RWAPoolFactory.IndexOutOfBounds.selector);
+        vm.expectRevert(IRWAPoolFactory.IndexOutOfBounds.selector);
         factory.getPoolAtIndex(0);
     }
 
