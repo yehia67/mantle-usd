@@ -120,7 +120,7 @@ export function PoolsAdminPanel({ onTransactionComplete }: PoolsAdminPanelProps)
       {loading ? (
         <div className="loading">Loading pools...</div>
       ) : (
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table>
             <thead>
               <tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { UserDashboard } from './user/UserDashboard';
 import { MUSDPositionPanel } from './user/MUSDPositionPanel';
@@ -14,6 +14,7 @@ export function UserView() {
   const { mintMETH } = useMETH();
   const { showToast } = useToast();
   const [minting, setMinting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleMintMETH = async () => {
     if (!address) {
@@ -25,6 +26,9 @@ export function UserView() {
     try {
       const txHash = await mintMETH();
       showToast(`Minted 10 mETH! Hash: ${txHash.slice(0, 10)}...`, 'success');
+      setTimeout(() => {
+        setRefreshKey(prev => prev + 1);
+      }, 2000);
     } catch (error) {
       showToast((error as Error).message || 'Mint failed', 'error');
     } finally {
@@ -76,7 +80,7 @@ export function UserView() {
           </button>
         </div>
       </div>
-      <UserDashboard />
+      <UserDashboard key={refreshKey} />
       <div className="grid grid-2 mt-4">
         <MUSDPositionPanel />
         <SuperStakeUserPanel />

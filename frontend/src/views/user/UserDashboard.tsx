@@ -74,50 +74,17 @@ export function UserDashboard() {
   }, [address, mETHContract, musdContract]);
 
   const protocolStats = data?.protocolStats;
-
-  if (!address) {
-    return (
-      <div>
-        <h2 className="mb-3">Protocol Overview</h2>
-        <div className="card mb-3" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107' }}>
-          <p className="text-secondary" style={{ margin: 0 }}>
-            ℹ️ Connect your wallet to view your personal dashboard and interact with the protocol
-          </p>
-        </div>
-        {protocolStats && (
-          <div className="grid grid-3">
-            <StatCard 
-              label="Total Supply" 
-              value={formatMUSD(protocolStats.totalSupply || '0')} 
-              suffix="mUSD"
-            />
-            <StatCard 
-              label="Total Debt" 
-              value={formatMUSD(protocolStats.totalDebt || '0')} 
-              suffix="mUSD"
-            />
-            <StatCard 
-              label="Total Collateral" 
-              value={formatToken(protocolStats.totalCollateral || '0')} 
-              suffix="mETH"
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (loading || balancesLoading) return <div className="loading">Loading...</div>;
-  if (error) return <div className="error">Error loading data: {error.message}</div>;
-
   const user = data?.user;
   const hasNoCollateral = !user || (user.collateralBalance === '0' && user.debtBalance === '0');
+
+  if (loading || balancesLoading) return <div className="loading">Loading...</div>;
+  if (error && address) return <div className="error">Error loading data: {error.message}</div>;
 
   return (
     <div>
       <h2 className="mb-3">Your Dashboard</h2>
       
-      {hasNoCollateral && (
+      {address && hasNoCollateral && (
         <div className="card mb-3" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107' }}>
           <p className="text-secondary" style={{ margin: 0 }}>
             ℹ️ This wallet has not locked any collateral yet. Lock mETH collateral to mint mUSD.
@@ -128,12 +95,12 @@ export function UserDashboard() {
       <div className="grid grid-4">
         <StatCard 
           label="Available mETH" 
-          value={formatToken(mETHBalance)} 
+          value={formatToken(address ? mETHBalance : '0')} 
           suffix="mETH"
         />
         <StatCard 
           label="Available mUSD" 
-          value={formatMUSD(musdWalletBalance)} 
+          value={formatMUSD(address ? musdWalletBalance : '0')} 
           suffix="mUSD"
         />
         <StatCard 
@@ -148,7 +115,7 @@ export function UserDashboard() {
         />
       </div>
       
-      {!hasNoCollateral && (
+      {address && !hasNoCollateral && (
         <div className="grid grid-2 mt-3">
           <StatCard 
             label="Health Factor" 

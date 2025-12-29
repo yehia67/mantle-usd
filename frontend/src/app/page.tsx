@@ -14,16 +14,7 @@ export default function Home() {
   return (
     <NetworkGuard>
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
-      {isConnected ? (
-        activeTab === 'user' ? <UserView /> : <AdminView />
-      ) : (
-        <div className="container">
-          <div className="card" style={{ textAlign: 'center', marginTop: '4rem' }}>
-            <h2>Welcome to mUSD Protocol</h2>
-            <p className="text-secondary mt-2">Connect your wallet to get started</p>
-          </div>
-        </div>
-      )}
+      {activeTab === 'user' ? <UserView /> : <AdminView />}
     </NetworkGuard>
   );
 }

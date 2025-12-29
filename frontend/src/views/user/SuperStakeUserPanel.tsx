@@ -188,7 +188,7 @@ export function SuperStakeUserPanel() {
       {history.length > 0 && (
         <>
           <h4 className="mb-2 mt-4">Position History</h4>
-          <div className="table-container">
+          <div className="table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
             <table>
               <thead>
                 <tr>

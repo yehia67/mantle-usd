@@ -31,7 +31,7 @@ export function SuperStakeAdminPanel() {
       {loading ? (
         <div className="loading">Loading positions...</div>
       ) : (
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table>
             <thead>
               <tr>

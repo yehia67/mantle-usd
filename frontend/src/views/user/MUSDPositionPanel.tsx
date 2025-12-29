@@ -115,59 +115,53 @@ export function MUSDPositionPanel() {
         </button>
       )}
 
-      {loading ? (
-        <div className="loading mt-3">Loading positions...</div>
-      ) : data?.user ? (
-        <div className="mt-3">
-          <h4 className="mb-2">Current Position</h4>
-          <div className="grid grid-3 mb-3">
-            <div>
-              <p className="text-xs text-secondary">Collateral</p>
-              <p className="text-sm">{formatToken(data.user.collateralBalance)} mETH</p>
-            </div>
-            <div>
-              <p className="text-xs text-secondary">Debt</p>
-              <p className="text-sm">{formatMUSD(data.user.debtBalance)} mUSD</p>
-            </div>
-            <div>
-              <p className="text-xs text-secondary">Health Factor</p>
-              <p className="text-sm">{(parseFloat(data.user.healthFactor || '0') / 100).toFixed(2)}</p>
-            </div>
+      <div className="mt-3">
+        <h4 className="mb-2">Current Position</h4>
+        <div className="grid grid-3 mb-3">
+          <div>
+            <p className="text-xs text-secondary">Collateral</p>
+            <p className="text-sm">{formatToken(data?.user?.collateralBalance || '0')} mETH</p>
           </div>
-          
-          {data.user.musdPositions?.length > 0 && (
-            <>
-              <h4 className="mb-2">Position History</h4>
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>Collateral</th>
-                      <th>Debt</th>
-                      <th>Health Factor</th>
+          <div>
+            <p className="text-xs text-secondary">Debt</p>
+            <p className="text-sm">{formatMUSD(data?.user?.debtBalance || '0')} mUSD</p>
+          </div>
+          <div>
+            <p className="text-xs text-secondary">Health Factor</p>
+            <p className="text-sm">{data?.user?.healthFactor ? (parseFloat(data.user.healthFactor) / 100).toFixed(2) : '0.00'}</p>
+          </div>
+        </div>
+        
+        {data?.user?.musdPositions?.length > 0 && (
+          <>
+            <h4 className="mb-2">Position History</h4>
+            <div className="table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Event</th>
+                    <th>Collateral</th>
+                    <th>Debt</th>
+                    <th>Health Factor</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.user.musdPositions.map((position: { id: string; eventType: string; collateralAmount: string; debtAmount: string; healthFactor: string; lastUpdatedTimestamp: string }) => (
+                    <tr key={position.id}>
+                      <td>{position.eventType}</td>
+                      <td>{formatToken(position.collateralAmount)} mETH</td>
+                      <td>{formatMUSD(position.debtAmount)} mUSD</td>
+                      <td>{(parseFloat(position.healthFactor) / 100).toFixed(2)}</td>
+                      <td>{new Date(parseInt(position.lastUpdatedTimestamp) * 1000).toLocaleString()}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {data.user.musdPositions.map((position: { id: string; eventType: string; collateralAmount: string; debtAmount: string; healthFactor: string; lastUpdatedTimestamp: string }) => (
-                      <tr key={position.id}>
-                        <td>{position.eventType}</td>
-                        <td>{formatToken(position.collateralAmount)} mETH</td>
-                        <td>{formatMUSD(position.debtAmount)} mUSD</td>
-                        <td>{(parseFloat(position.healthFactor) / 100).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3">
-          <p className="text-secondary text-sm">Connect your wallet to view positions</p>
-        </div>
-      )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
