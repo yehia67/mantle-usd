@@ -73,7 +73,6 @@ export function UserDashboard() {
     fetchBalances();
   }, [address, mETHContract, musdContract]);
 
-  const protocolStats = data?.protocolStats;
   const user = data?.user;
   const hasNoCollateral = !user || (user.collateralBalance === '0' && user.debtBalance === '0');
 

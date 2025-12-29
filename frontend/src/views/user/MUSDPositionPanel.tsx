@@ -36,7 +36,7 @@ export function MUSDPositionPanel() {
   const [action, setAction] = useState<'lock' | 'unlock'>('lock');
   const { showToast } = useToast();
   
-  const { data, loading, refetch } = useQuery(GET_MUSD_POSITIONS, {
+  const { data, refetch } = useQuery(GET_MUSD_POSITIONS, {
     variables: { userId: address?.toLowerCase() },
     skip: !address,
   });
