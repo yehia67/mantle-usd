@@ -5,20 +5,21 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IRiscZeroVerifier} from "risc0-ethereum/contracts/src/IRiscZeroVerifier.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IRWAPool} from "./interfaces/IRWAPool.sol";
 
 /// @title RWAPool
 /// @notice AMM pool for mUSD ↔ RWA token swaps with RISC Zero proof verification
 /// @dev All swaps require valid RISC Zero proofs to ensure compliance
-contract RWAPool is IRWAPool, ReentrancyGuard {
+contract RWAPool is IRWAPool, ReentrancyGuard, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
     IERC20 public immutable mUSD;
     IERC20 public immutable rwaToken;
-    address public immutable verifier;
-    bytes32 public immutable allowedImageId;
+    address public verifier;
+    bytes32 public allowedImageId;
 
     uint256 public reserveMUSD;
     uint256 public reserveRWA;
@@ -31,6 +32,12 @@ contract RWAPool is IRWAPool, ReentrancyGuard {
     uint256 private constant FEE_DENOMINATOR = 1000;
 
     /*//////////////////////////////////////////////////////////////
+                                EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    event ImageIdUpdated(bytes32 indexed oldImageId, bytes32 indexed newImageId);
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -39,7 +46,9 @@ contract RWAPool is IRWAPool, ReentrancyGuard {
     /// @param _rwaToken Address of RWA token
     /// @param _verifier Address of RISC Zero verifier contract
     /// @param _allowedImageId Allowed RISC Zero image ID for compliance proofs
-    constructor(address _mUSD, address _rwaToken, address _verifier, bytes32 _allowedImageId) {
+    constructor(address _mUSD, address _rwaToken, address _verifier, bytes32 _allowedImageId)
+        Ownable(msg.sender)
+    {
         if (_mUSD == address(0) || _rwaToken == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
@@ -49,6 +58,26 @@ contract RWAPool is IRWAPool, ReentrancyGuard {
         rwaToken = IERC20(_rwaToken);
         verifier = _verifier;
         allowedImageId = _allowedImageId;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Update the allowed RISC Zero image ID for compliance verification
+    /// @param newImageId New image ID to allow
+    function setAllowedImageId(bytes32 newImageId) external onlyOwner {
+        if (newImageId == bytes32(0)) revert InvalidImageId();
+        bytes32 oldImageId = allowedImageId;
+        allowedImageId = newImageId;
+        emit ImageIdUpdated(oldImageId, newImageId);
+    }
+
+    /// @notice Update the RISC Zero verifier contract address
+    /// @param newVerifier Address of the new verifier contract
+    function setVerifier(address newVerifier) external onlyOwner {
+        if (newVerifier == address(0)) revert ZeroAddress();
+        verifier = newVerifier;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -155,7 +184,7 @@ contract RWAPool is IRWAPool, ReentrancyGuard {
         emit LiquidityRemoved(msg.sender, amountMUSD, amountRWA);
     }
 
-    /*//////////////////////////////////////////////////////////////
+    /*/////////////////`/////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 

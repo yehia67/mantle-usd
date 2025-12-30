@@ -80,7 +80,7 @@ dataSources:
     name: RWAPoolFactory
     network: mantle-sepolia
     source:
-      address: '0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1'
+      address: '0x189956C062728196452Fe4330544e1d77D0b01BC'
       abi: RWAPoolFactory
       startBlock: 32555722
     mapping:

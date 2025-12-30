@@ -90,7 +90,7 @@ contract SetupScript is Script {
     address constant SWAPPER = 0x35cc0a5400D745EE96B082a9c70Cf7de44FAAFD3;
     
     // Source: README.md L37-38
-    address constant ZK_VERIFIER = 0x3760DA9653Cc7F653FFe664BA4CC3A3f7f3b3EA2;
+    address constant ZK_VERIFIER = 0xDBCf221465348424E6e30c95Ff8c3837427A191c;
     
     // Source: README.md L46-47
     address constant MUSD = 0x1ADE47C51C4850EcAc5F46Bb9C86835dc2EB5354;
@@ -99,7 +99,7 @@ contract SetupScript is Script {
     address constant SUPER_STAKE = 0x915b4a846bD04180F044214a15446eBd680a64D7;
     
     // Source: README.md L52-53
-    address constant RWA_POOL_FACTORY = 0xC78452Df479c7B050Fb8E2225E6f25AEf059C7A1;
+    address constant RWA_POOL_FACTORY = 0x189956C062728196452Fe4330544e1d77D0b01BC;
 
     // ============================================
     // CONSTANTS - CONFIGURATION VALUES

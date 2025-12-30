@@ -6,11 +6,13 @@ import { formatMUSD, formatToken } from '@/utils/format';
 import { useRWAPool } from '@/hooks/useRWAPool';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useToast } from '@/components/Toast';
+import { CONTRACT_ADDRESSES } from '@/config/constants';
 
 const GET_POOLS = gql`
   query GetPools {
     rwapools {
       id
+      rwaToken
       assetSymbol
       reserveMUSD
       reserveRWA
@@ -24,34 +26,165 @@ const GET_POOLS = gql`
 export function PoolsUserPanel() {
   const [selectedPool, setSelectedPool] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
+  const [amountMUSD, setAmountMUSD] = useState('');
+  const [amountRWA, setAmountRWA] = useState('');
+  const [swapDirection, setSwapDirection] = useState<'mUSDtoRWA' | 'RWAtoMUSD'>('mUSDtoRWA');
   const [action, setAction] = useState<'addLiquidity' | 'swap'>('addLiquidity');
   const { data, loading, refetch } = useQuery(GET_POOLS);
   const { address } = useAppKitAccount();
   const { showToast } = useToast();
   
-  const { addLiquidity, loading: swapLoading } = useRWAPool(selectedPool || '');
+  const selectedPoolData = data?.rwapools?.find((p: any) => p.id === selectedPool);
+  const rwaTokenAddress = selectedPoolData?.rwaToken; // Get actual RWA token address from subgraph
+  
+  const { 
+    addLiquidity, 
+    swap, 
+    checkSwapApproval,
+    checkLiquidityApproval,
+    approveSwapToken,
+    approveMUSD,
+    approveRWA,
+    needsApprovalMUSD,
+    needsApprovalRWA,
+    loading: swapLoading 
+  } = useRWAPool(selectedPool || '', rwaTokenAddress);
+
+  const calculateComplementaryAmount = (inputAmount: string, isMusdInput: boolean) => {
+    if (!selectedPoolData || !inputAmount || inputAmount === '0') return '';
+    
+    // Reserves from subgraph are in wei (with decimals)
+    // mUSD has 6 decimals, RWA tokens have 18 decimals
+    const reserveMUSD = parseFloat(selectedPoolData.reserveMUSD) / 1e6; // Convert from 6 decimals
+    const reserveRWA = parseFloat(selectedPoolData.reserveRWA) / 1e18; // Convert from 18 decimals
+    
+    if (reserveMUSD === 0 || reserveRWA === 0) return '';
+    
+    const input = parseFloat(inputAmount);
+    if (isNaN(input)) return '';
+    
+    let result: number;
+    if (isMusdInput) {
+      // User enters mUSD, calculate RWA: RWA = (mUSD * reserveRWA) / reserveMUSD
+      result = (input * reserveRWA) / reserveMUSD;
+      // Round to 18 decimals max for RWA tokens
+      return Number(result.toFixed(18)).toString();
+    } else {
+      // User enters RWA, calculate mUSD: mUSD = (RWA * reserveMUSD) / reserveRWA
+      result = (input * reserveMUSD) / reserveRWA;
+      // Round to 6 decimals max for mUSD
+      return Number(result.toFixed(6)).toString();
+    }
+  };
+
+  const handleMUSDChange = async (value: string) => {
+    setAmountMUSD(value);
+    const calculatedRWA = calculateComplementaryAmount(value, true);
+    setAmountRWA(calculatedRWA);
+    
+    if (value && calculatedRWA) {
+      await checkLiquidityApproval(value, calculatedRWA);
+    }
+  };
+
+  const handleRWAChange = async (value: string) => {
+    setAmountRWA(value);
+    const calculatedMUSD = calculateComplementaryAmount(value, false);
+    setAmountMUSD(calculatedMUSD);
+    
+    if (value && calculatedMUSD) {
+      await checkLiquidityApproval(calculatedMUSD, value);
+    }
+  };
+
+  const handleSwapAmountChange = async (value: string) => {
+    setAmount(value);
+    if (value) {
+      const tokenIn = swapDirection === 'mUSDtoRWA' ? CONTRACT_ADDRESSES.mUSD : rwaTokenAddress;
+      await checkSwapApproval(tokenIn, value);
+    }
+  };
+
+  const handleApproveMUSD = async () => {
+    try {
+      const txHash = await approveMUSD();
+      showToast(`mUSD approved! Hash: ${txHash.slice(0, 10)}...`, 'success');
+      if (amountMUSD && amountRWA) {
+        await checkLiquidityApproval(amountMUSD, amountRWA);
+      }
+    } catch (error) {
+      showToast((error as Error).message || 'Approval failed', 'error');
+    }
+  };
+
+  const handleApproveRWA = async () => {
+    try {
+      const txHash = await approveRWA();
+      showToast(`${selectedPoolData?.assetSymbol} approved! Hash: ${txHash.slice(0, 10)}...`, 'success');
+      if (amountMUSD && amountRWA) {
+        await checkLiquidityApproval(amountMUSD, amountRWA);
+      }
+    } catch (error) {
+      showToast((error as Error).message || 'Approval failed', 'error');
+    }
+  };
+
+  const handleApproveSwap = async () => {
+    try {
+      const tokenIn = swapDirection === 'mUSDtoRWA' ? CONTRACT_ADDRESSES.mUSD : rwaTokenAddress;
+      const txHash = await approveSwapToken(tokenIn);
+      const tokenName = swapDirection === 'mUSDtoRWA' ? 'mUSD' : selectedPoolData?.assetSymbol;
+      showToast(`${tokenName} approved! Hash: ${txHash.slice(0, 10)}...`, 'success');
+    } catch (error) {
+      showToast((error as Error).message || 'Approval failed', 'error');
+    }
+  };
 
   const handleAction = async () => {
-    if (!selectedPool || !amount) return;
+    if (!selectedPool) return;
     
     try {
       let txHash;
       if (action === 'addLiquidity') {
-        txHash = await addLiquidity(amount, amount, '0');
+        if (!amountMUSD || !amountRWA) {
+          showToast('Please enter both mUSD and RWA amounts', 'error');
+          return;
+        }
+        txHash = await addLiquidity(amountMUSD, amountRWA, '0');
       } else {
-        // For swap, we need more parameters - simplified for now
-        showToast('Swap functionality requires ZK proof parameters. Please use the full interface.', 'info');
-        return;
+        if (!amount) {
+          showToast('Please enter an amount', 'error');
+          return;
+        }
+        // Generate placeholder ZK params for testing
+        const placeholderSeal = '0x' + '00'.repeat(32); // 32 bytes of zeros
+        const placeholderImageId = '0xcc8d9e54ea35adb5416485e372c5db1928bb4cc60b93e494ad227c50ef5b1082';
+        const placeholderJournalDigest = '0x' + '00'.repeat(32); // 32 bytes of zeros
+        
+        const tokenIn = swapDirection === 'mUSDtoRWA' ? CONTRACT_ADDRESSES.mUSD : rwaTokenAddress;
+        const tokenOut = swapDirection === 'mUSDtoRWA' ? rwaTokenAddress : CONTRACT_ADDRESSES.mUSD;
+        
+        txHash = await swap(
+          tokenIn,
+          tokenOut,
+          amount,
+          '0', // minAmountOut = 0 for testing
+          placeholderSeal,
+          placeholderImageId,
+          placeholderJournalDigest
+        );
       }
       
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
+        setAmountMUSD('');
+        setAmountRWA('');
         // Wait for subgraph to index the transaction before refetching
         setTimeout(() => refetch(), 3000);
       }
     } catch (error) {
-      showToast((error as Error).message || 'Swap failed', 'error');
+      showToast((error as Error).message || 'Transaction failed', 'error');
     }
   };
 
@@ -103,7 +236,7 @@ export function PoolsUserPanel() {
 
       {selectedPool && (
         <div className="mt-3">
-          <h4>Pool Actions</h4>
+          <h4>Pool Actions - {selectedPoolData?.assetSymbol}</h4>
           <div className="tabs mb-2">
             <div className={`tab ${action === 'addLiquidity' ? 'active' : ''}`} onClick={() => setAction('addLiquidity')}>
               Add Liquidity
@@ -112,22 +245,103 @@ export function PoolsUserPanel() {
               Swap
             </div>
           </div>
-          <div className="input-group">
-            <label>Amount</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.0"
-            />
-          </div>
-          <button 
-            className="btn-primary" 
-            onClick={handleAction}
-            disabled={!amount || !address || swapLoading}
-          >
-            {swapLoading ? 'Processing...' : action === 'addLiquidity' ? 'Add Liquidity' : 'Swap'}
-          </button>
+          
+          {action === 'addLiquidity' ? (
+            <>
+              <div className="input-group">
+                <label>mUSD Amount</label>
+                <input
+                  type="number"
+                  value={amountMUSD}
+                  onChange={(e) => handleMUSDChange(e.target.value)}
+                  placeholder="0.0"
+                />
+              </div>
+              <div className="input-group">
+                <label>{selectedPoolData?.assetSymbol} Amount</label>
+                <input
+                  type="number"
+                  value={amountRWA}
+                  onChange={(e) => handleRWAChange(e.target.value)}
+                  placeholder="0.0"
+                />
+              </div>
+              
+              {needsApprovalMUSD && (
+                <button 
+                  className="btn-primary mb-2" 
+                  onClick={handleApproveMUSD}
+                  disabled={!address || swapLoading}
+                >
+                  {swapLoading ? 'Approving...' : 'Approve mUSD'}
+                </button>
+              )}
+              
+              {needsApprovalRWA && (
+                <button 
+                  className="btn-primary mb-2" 
+                  onClick={handleApproveRWA}
+                  disabled={!address || swapLoading}
+                >
+                  {swapLoading ? 'Approving...' : `Approve ${selectedPoolData?.assetSymbol}`}
+                </button>
+              )}
+              
+              {!needsApprovalMUSD && !needsApprovalRWA && (
+                <button 
+                  className="btn-primary" 
+                  onClick={handleAction}
+                  disabled={!address || swapLoading || !amountMUSD || !amountRWA}
+                >
+                  {swapLoading ? 'Processing...' : 'Add Liquidity'}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="tabs mb-2">
+                <div 
+                  className={`tab ${swapDirection === 'mUSDtoRWA' ? 'active' : ''}`} 
+                  onClick={() => setSwapDirection('mUSDtoRWA')}
+                >
+                  mUSD → {selectedPoolData?.assetSymbol}
+                </div>
+                <div 
+                  className={`tab ${swapDirection === 'RWAtoMUSD' ? 'active' : ''}`} 
+                  onClick={() => setSwapDirection('RWAtoMUSD')}
+                >
+                  {selectedPoolData?.assetSymbol} → mUSD
+                </div>
+              </div>
+              <div className="input-group">
+                <label>{swapDirection === 'mUSDtoRWA' ? 'mUSD' : selectedPoolData?.assetSymbol} Amount</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => handleSwapAmountChange(e.target.value)}
+                  placeholder="0.0"
+                />
+              </div>
+              
+              {(swapDirection === 'mUSDtoRWA' ? needsApprovalMUSD : needsApprovalRWA) ? (
+                <button 
+                  className="btn-primary" 
+                  onClick={handleApproveSwap}
+                  disabled={!address || swapLoading || !amount}
+                >
+                  {swapLoading ? 'Approving...' : `Approve ${swapDirection === 'mUSDtoRWA' ? 'mUSD' : selectedPoolData?.assetSymbol}`}
+                </button>
+              ) : (
+                <button 
+                  className="btn-primary" 
+                  onClick={handleAction}
+                  disabled={!address || swapLoading || !amount}
+                >
+                  {swapLoading ? 'Processing...' : 'Swap'}
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
