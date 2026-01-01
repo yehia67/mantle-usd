@@ -79,9 +79,11 @@ async fn main() -> Result<()> {
         .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:5001").await.unwrap();
+    let port = env::var("HOST_PORT").expect("HOST_PORT env var must be set");
+    let address = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&address).await.unwrap();
 
-    println!("🚀 Axum running on http://localhost:5001");
+    println!("🚀 Axum running on http://{address}");
 
     axum::serve(listener, app).await.unwrap();
     Ok(())
