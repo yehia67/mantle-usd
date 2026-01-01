@@ -1,108 +1,146 @@
-# RISC Zero Rust Starter Template
+# Mantle USD Compliance API
 
-Welcome to the RISC Zero Rust Starter Template! This template is intended to
-give you a starting point for building a project using the RISC Zero zkVM.
-Throughout the template (including in this README), you'll find comments
-labelled `TODO` in places where you'll need to make changes. To better
-understand the concepts behind this template, check out the [zkVM
-Overview][zkvm-overview].
+This crate hosts the Axum service that orchestrates zk-compliance proofs for Mantle USD.  
+It does three things:
 
-## Quick Start
+1. Uploads the compiled RISC Zero guest ELF to Pinata to obtain an IPFS URL the Boundless network can execute (@backend/API/host/src/pinata.rs#20-60).
+2. Spins up an Axum server with `/` and `/validate_user` routes (@backend/API/host/src/main.rs#53-112).
+3. Submits proof requests to Boundless, waits for fulfillment, and returns the proof package to callers (@backend/API/host/src/proof_submitter.rs#10-74).
 
-First, make sure [rustup] is installed. The
-[`rust-toolchain.toml`][rust-toolchain] file will be used by `cargo` to
-automatically install the correct version.
+The workspace contains two crates:
 
-To build all methods and execute the method within the zkVM, run the following
-command:
+```
+backend/API
+├── host     # Axum server (this README)
+└── methods  # RISC Zero guest + build scripts
+```
+
+---
+
+## Prerequisites
+
+| Requirement | Reason |
+|-------------|--------|
+| `rustup` + the toolchain pinned in `rust-toolchain.toml` | Ensures the host and guest compile deterministically. |
+| Pinata account + JWT | Required to upload the guest ELF before the server starts (@backend/API/host/src/pinata.rs#20-44). |
+| Boundless account credentials | `storage_provider_from_env()` in the Boundless SDK loads provider-specific env vars at runtime (@backend/API/host/src/proof_submitter.rs#16-24). |
+| Ethereum RPC endpoint + funded signer | The host signs on-chain requests when submitting to Boundless (@backend/API/host/src/main.rs#24-53). |
+
+Install workspace dependencies once:
 
 ```bash
-cargo run
+cargo check
 ```
 
-### Executing the Project Locally in Development Mode
+---
 
-During development, faster iteration upon code changes can be achieved by leveraging [dev-mode], we strongly suggest activating it during your early development phase. Furthermore, you might want to get insights into the execution statistics of your project, and this can be achieved by specifying the environment variable `RUST_LOG="[executor]=info"` before running your project.
+## Required environment
 
-Put together, the command to run your project in development mode while getting execution statistics is:
+Define the following variables before running `cargo run -p host`.
+
+| Variable | Description |
+|----------|-------------|
+| `RPC_URL` | HTTPS RPC endpoint for the target network (parsed at boot) (@backend/API/host/src/main.rs#24-53). |
+| `PRIVATE_KEY` | Hex-encoded 32-byte ECDSA key used by the Boundless client (@backend/API/host/src/main.rs#24-53). |
+| `PINATA_JWT` | JWT from Pinata used to upload `GUEST_CODE_FOR_ZK_PROOF_ELF` and obtain the program CID (@backend/API/host/src/pinata.rs#20-44). |
+| Boundless storage vars | Whatever credentials your Boundless storage provider expects; `storage_provider_from_env()` reads them before the client is constructed (@backend/API/host/src/proof_submitter.rs#16-24). |
+
+Example (fish/zsh syntax):
 
 ```bash
-RUST_LOG="[executor]=info" RISC0_DEV_MODE=1 cargo run
+export RPC_URL="https://sepolia.infura.io/v3/<project>"
+export PRIVATE_KEY="<64-hex>"
+export PINATA_JWT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+# export BOUNDLESS_... (see Boundless docs)
 ```
 
-### Running Proofs Remotely on Bonsai
+## Environment Variables
 
-_Note: The Bonsai proving service is still in early Alpha; an API key is
-required for access. [Click here to request access][bonsai access]._
-
-If you have access to the URL and API key to Bonsai you can run your proofs
-remotely. To prove in Bonsai mode, invoke `cargo run` with two additional
-environment variables:
+Copy `.env.example` to `.env` and fill in:
 
 ```bash
-BONSAI_API_KEY="YOUR_API_KEY" BONSAI_API_URL="BONSAI_URL" cargo run
+RPC_URL=https://rpc.sepolia.mantle.xyz
+PRIVATE_KEY=<your-64-char-hex-private-key-WITHOUT-0x-prefix>
+PINATA_JWT=<your-pinata-jwt-token>
+
+# Optional: Cache the Pinata CID to avoid rate limits
+# After first upload, copy the CID from logs and set:
+# PINATA_CID=bafybeid...R5cCI6IkpXVCJ9..."
+# export BOUNDLESS_... (see Boundless docs)
 ```
 
-## How to Create a Project Based on This Template
+---
 
-Search this template for the string `TODO`, and make the necessary changes to
-implement the required feature described by the `TODO` comment. Some of these
-changes will be complex, and so we have a number of instructional resources to
-assist you in learning how to write your own code for the RISC Zero zkVM:
+## Running the server
 
-- The [RISC Zero Developer Docs][dev-docs] is a great place to get started.
-- Example projects are available in the [examples folder][examples] of
-  [`risc0`][risc0-repo] repository.
-- Reference documentation is available at [https://docs.rs][docs.rs], including
-  [`risc0-zkvm`][risc0-zkvm], [`cargo-risczero`][cargo-risczero],
-  [`risc0-build`][risc0-build], and [others][crates].
+From `backend/API`:
 
-## Directory Structure
-
-It is possible to organize the files for these components in various ways.
-However, in this starter template we use a standard directory structure for zkVM
-applications, which we think is a good starting point for your applications.
-
-```text
-project_name
-├── Cargo.toml
-├── host
-│   ├── Cargo.toml
-│   └── src
-│       └── main.rs                    <-- [Host code goes here]
-└── methods
-    ├── Cargo.toml
-    ├── build.rs
-    ├── guest
-    │   ├── Cargo.toml
-    │   └── src
-    │       └── method_name.rs         <-- [Guest code goes here]
-    └── src
-        └── lib.rs
+```bash
+cargo run -p host
 ```
 
-## Video Tutorial
+What happens:
 
-For a walk-through of how to build with this template, check out this [excerpt
-from our workshop at ZK HACK III][zkhack-iii].
+1. Guest ELF is uploaded to Pinata and the resulting CID is converted into a `guest_program_url` (@backend/API/host/src/main.rs#41-58, @backend/API/host/src/pinata.rs#20-60).
+2. Axum listens on `0.0.0.0:3000` with shared state containing the signer, RPC URL, and guest program URL (@backend/API/host/src/main.rs#53-72).
+3. Each POST to `/validate_user` invokes `submit_proof_request`, which streams the payload to Boundless, waits for fulfillment, then returns the proof bundle (@backend/API/host/src/main.rs#86-112, @backend/API/host/src/proof_submitter.rs#10-74).
 
-## Questions, Feedback, and Collaborations
+Logs show CID uploads, Boundless request IDs, and fulfillment metadata so you can trace the entire flow.
 
-We'd love to hear from you on [Discord][discord] or [Twitter][twitter].
+---
 
-[bonsai access]: https://bonsai.xyz/apply
-[cargo-risczero]: https://docs.rs/cargo-risczero
-[crates]: https://github.com/risc0/risc0/blob/main/README.md#rust-binaries
-[dev-docs]: https://dev.risczero.com
-[dev-mode]: https://dev.risczero.com/api/generating-proofs/dev-mode
-[discord]: https://discord.gg/risczero
-[docs.rs]: https://docs.rs/releases/search?query=risc0
-[examples]: https://github.com/risc0/risc0/tree/main/examples
-[risc0-build]: https://docs.rs/risc0-build
-[risc0-repo]: https://www.github.com/risc0/risc0
-[risc0-zkvm]: https://docs.rs/risc0-zkvm
-[rust-toolchain]: rust-toolchain.toml
-[rustup]: https://rustup.rs
-[twitter]: https://twitter.com/risczero
-[zkhack-iii]: https://www.youtube.com/watch?v=Yg_BGqj_6lg&list=PLcPzhUaCxlCgig7ofeARMPwQ8vbuD6hC5&index=5
-[zkvm-overview]: https://dev.risczero.com/zkvm
+## API reference
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/` | `GET` | Health/info route returning a welcome JSON message (@backend/API/host/src/main.rs#76-117). |
+| `/validate_user` | `GET` | Explains the required payload format (@backend/API/host/src/main.rs#119-141). |
+| `/validate_user` | `POST` | Accepts a full compliance payload (see schema below), forwards it to Boundless, and responds with `{ outcome, proof, message }` (@backend/API/host/src/main.rs#145-166). |
+| `/compliance/pools` | `POST` | Same handler as `/validate_user` for backwards compatibility (used by some integrations). |
+
+You can exercise all routes from `api.http` (VS Code/JetBrains compatible) located next to this README (@backend/API/api.http#1-58) or via the live Swagger UI at `http://localhost:3000/docs` once the server is running.
+
+Sample request:
+
+```bash
+curl -X POST http://localhost:3000/validate_user \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "0x1111222233334444555566667777888899990000",
+    "pool_id": "gold",
+    "residency": "US",
+    "kyc_level": 2,
+    "aml_passed": true,
+    "accredited_investor": true,
+    "exposure_musd": 20000,
+    "requested_amount": 10000,
+    "risk_score": 3
+  }'
+```
+
+The response includes:
+
+- `outcome`: structured compliance decision with the pool, reason, max allocation, and exposure.
+- `proof`: journal, seal, and request ID metadata suitable for on-chain submission.
+- `message`: human-readable status string.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---------|--------------|
+| `PINATA_JWT environment variable must be set` | Missing Pinata JWT export before boot. |
+| `private key must be exactly 32 bytes` | `PRIVATE_KEY` not 64 hex chars (@backend/API/host/src/main.rs#24-37). |
+| Boundless client fails to build | Required storage provider env vars not present (@backend/API/host/src/proof_submitter.rs#16-24). |
+| Request hangs at fulfillment | Boundless job still running; watch the `wait_for_request_fulfillment` log lines to ensure progress (@backend/API/host/src/proof_submitter.rs#39-51). |
+
+---
+
+## Contributing
+
+- Host-specific code lives under `host/src`.
+- Guest logic lives under `methods/guest/src`; rebuild by running `cargo run -p host` (build.rs regenerates the guest bindings automatically).
+- When you touch the Boundless flow, keep the existing logging — it is relied on by ops dashboards.
+
+For questions about the wider Mantle USD architecture, see the repository root `README.md`.

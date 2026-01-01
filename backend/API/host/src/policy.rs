@@ -1,43 +1,4 @@
-use risc0_zkvm::guest::env;
-use serde::{Deserialize, Serialize};
-
-fn main() {
-    let input: ComplianceInput = env::read();
-    let outcome = evaluate(input);
-    env::commit(&outcome);
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum PoolId {
-    Gold,
-    MoneyMarket,
-    RealEstate,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComplianceInput {
-    pub user: String,
-    pub pool_id: PoolId,
-    pub residency: String,
-    pub kyc_level: u8,
-    pub aml_passed: bool,
-    pub accredited_investor: bool,
-    pub exposure_musd: u64,
-    pub requested_amount: u64,
-    pub risk_score: u8,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComplianceOutcome {
-    pub user: String,
-    pub pool_id: PoolId,
-    pub allowed: bool,
-    pub reason: String,
-    pub max_allocation: u64,
-    pub requested_amount: u64,
-    pub exposure_musd: u64,
-}
+use crate::types::{ComplianceOutcome, ComplianceRequest, PoolId};
 
 struct PoolPolicy {
     name: &'static str,
@@ -55,13 +16,13 @@ const GOLD_ALLOWED: &[&str] = &["US", "CA", "UK", "DE", "FR", "SG", "AE"];
 const MONEY_MARKET_ALLOWED: &[&str] = &["US", "CA", "UK", "DE", "FR"];
 const REAL_ESTATE_BANNED: &[&str] = &["RU", "KP", "IR", "SY"];
 
-fn evaluate(input: ComplianceInput) -> ComplianceOutcome {
-    let policy = policy_for(input.pool_id);
-    let normalized_residency = input.residency.to_ascii_uppercase();
+pub fn evaluate(request: &ComplianceRequest) -> ComplianceOutcome {
+    let policy = policy_for(request.pool_id);
+    let normalized_residency = request.residency.to_ascii_uppercase();
 
     let mut failures: Vec<String> = Vec::new();
 
-    if !input.aml_passed {
+    if !request.aml_passed {
         failures.push("AML screening failed".to_string());
     }
 
@@ -87,35 +48,35 @@ fn evaluate(input: ComplianceInput) -> ComplianceOutcome {
         }
     }
 
-    if input.kyc_level < policy.min_kyc_level {
+    if request.kyc_level < policy.min_kyc_level {
         failures.push(format!(
             "{} pool requires KYC level {} or higher (provided {})",
-            policy.name, policy.min_kyc_level, input.kyc_level
+            policy.name, policy.min_kyc_level, request.kyc_level
         ));
     }
 
-    if input.risk_score > policy.max_risk_score {
+    if request.risk_score > policy.max_risk_score {
         failures.push(format!(
             "Risk score {} exceeds {} pool limit {}",
-            input.risk_score, policy.name, policy.max_risk_score
+            request.risk_score, policy.name, policy.max_risk_score
         ));
     }
 
-    if policy.require_accreditation && !input.accredited_investor {
+    if policy.require_accreditation && !request.accredited_investor {
         failures.push(format!(
             "{} pool is limited to accredited investors",
             policy.name
         ));
     }
 
-    if input.requested_amount > policy.max_single_trade {
+    if request.requested_amount > policy.max_single_trade {
         failures.push(format!(
             "Requested amount {} mUSD exceeds {} single-trade limit of {} mUSD",
-            input.requested_amount, policy.name, policy.max_single_trade
+            request.requested_amount, policy.name, policy.max_single_trade
         ));
     }
 
-    let projected_exposure = input.exposure_musd.saturating_add(input.requested_amount);
+    let projected_exposure = request.exposure_musd.saturating_add(request.requested_amount);
     if projected_exposure > policy.max_total_exposure {
         failures.push(format!(
             "Projected exposure {} mUSD exceeds {} pool cap of {} mUSD",
@@ -126,24 +87,24 @@ fn evaluate(input: ComplianceInput) -> ComplianceOutcome {
     let allowed = failures.is_empty();
     let max_allocation = policy
         .max_total_exposure
-        .saturating_sub(input.exposure_musd);
+        .saturating_sub(request.exposure_musd);
     let reason = if allowed {
         format!(
             "{} pool approval: user may allocate up to {} mUSD more (requested {}).",
-            policy.name, max_allocation, input.requested_amount
+            policy.name, max_allocation, request.requested_amount
         )
     } else {
         failures.join(" | ")
     };
 
     ComplianceOutcome {
-        user: input.user,
+        user: request.user.clone(),
         pool_id: policy.pool_id,
         allowed,
         reason,
         max_allocation,
-        requested_amount: input.requested_amount,
-        exposure_musd: input.exposure_musd,
+        requested_amount: request.requested_amount,
+        exposure_musd: request.exposure_musd,
     }
 }
 

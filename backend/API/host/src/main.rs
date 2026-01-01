@@ -3,23 +3,27 @@ use anyhow::Result;
 use axum::response::IntoResponse;
 use axum::{
     extract::{Json, State},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use k256::ecdsa::SigningKey;
 use serde_json::json;
 use std::{env, sync::Arc};
+use tower_http::cors::{CorsLayer, Any};
 use url::Url;
 
 mod pinata;
+mod policy;
 mod proof_submitter;
 mod types;
 mod utils;
 
 use crate::pinata::*;
+use crate::policy::*;
 use crate::proof_submitter::*;
 use crate::types::*;
 use crate::utils::*;
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -57,17 +61,27 @@ async fn main() -> Result<()> {
         guest_program_url,
     });
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/", get(root))
         .route(
             "/validate_user",
             get(get_validate_user).post(post_validate_user_handler),
         )
+        .route(
+            "/compliance/pools",
+            post(post_compliance_pools_handler),
+        )
+        .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:5001").await.unwrap();
 
-    println!("🚀 Axum running on http://localhost:3000");
+    println!("🚀 Axum running on http://localhost:5001");
 
     axum::serve(listener, app).await.unwrap();
     Ok(())
@@ -80,13 +94,39 @@ async fn root() -> Json<serde_json::Value> {
 
 // GET /validate_user
 async fn get_validate_user() -> Json<serde_json::Value> {
-    Json(json!({"message": "Send a POST request with { \"is_compliant\": true | false }"}))
+    Json(json!({
+        "message": "POST /validate_user or /compliance/pools with full compliance payload",
+        "schema": {
+            "user": "0x...",
+            "pool_id": "gold | money_market | real_estate",
+            "residency": "ISO country code",
+            "kyc_level": "u8 >= 0",
+            "aml_passed": "bool",
+            "accredited_investor": "bool",
+            "exposure_musd": "current exposure in mUSD",
+            "requested_amount": "trade amount in mUSD",
+            "risk_score": "0-10"
+        }
+    }))
 }
 
 // POST /validate_user
 async fn post_validate_user_handler(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<UserRequest>,
+    Json(payload): Json<ComplianceRequest>,
+) -> impl IntoResponse {
+    post_validate_user(
+        Json(payload),
+        &state.signer,
+        state.rpc_url.clone(),
+        state.guest_program_url.clone(),
+    )
+    .await
+}
+
+async fn post_compliance_pools_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<ComplianceRequest>,
 ) -> impl IntoResponse {
     post_validate_user(
         Json(payload),
@@ -98,15 +138,21 @@ async fn post_validate_user_handler(
 }
 
 async fn post_validate_user(
-    Json(payload): Json<UserRequest>,
+    Json(payload): Json<ComplianceRequest>,
     signer: &PrivateKeySigner,
     rpc_url: Url,
     guest_program_url: Url,
 ) -> Json<UserResponse> {
-    let verified_response =
-        submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
-            .await
-            .expect("zk proof failed");
-    println!("Verified: {}", verified_response.proof_fulfillment.str_format);
-    verified_response
+    let preliminary_outcome = evaluate(&payload);
+    if !preliminary_outcome.allowed {
+        return Json(UserResponse {
+            message: preliminary_outcome.reason.clone(),
+            outcome: preliminary_outcome,
+            proof: None,
+        });
+    }
+
+    submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
+        .await
+        .expect("zk proof failed")
 }
