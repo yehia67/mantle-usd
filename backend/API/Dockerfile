@@ -26,8 +26,15 @@ FROM --platform=linux/amd64 rust:1.89
 WORKDIR /app
 
 # Create directories that boundless-market might need for caching/storage
-RUN mkdir -p /app/.cache /app/.local /tmp && \
-    chmod -R 777 /app/.cache /app/.local /tmp
+RUN mkdir -p /app/.cache /app/.local /app/.config /root/.cache /root/.local /root/.config /tmp && \
+    chmod -R 777 /app /root /tmp
+
+# Set environment variables for storage locations
+ENV HOME=/app
+ENV XDG_CACHE_HOME=/app/.cache
+ENV XDG_CONFIG_HOME=/app/.config
+ENV XDG_DATA_HOME=/app/.local
+ENV RUST_BACKTRACE=1
 
 # Copy the compiled binary from builder
 COPY --from=builder /app/target/release/host /app/host
