@@ -2,15 +2,14 @@ FROM --platform=linux/amd64 rust:1.89 as builder
 
 WORKDIR /app
 
-# Install RISC Zero toolchain
-RUN curl -L https://risczero.com/install | bash && \
-    . /root/.bashrc && \
-    /root/.risc0/bin/rzup install rust
-
-ENV PATH="/root/.risc0/bin:/root/.cargo/bin:${PATH}"
-
-# Copy source code
+# Copy source code first to leverage Docker cache
 COPY . .
+
+# Install RISC Zero toolchain matching risc0-zkvm 3.0.4
+# Use specific version that matches dependencies without GitHub API calls
+RUN rustup toolchain install 1.81.0 && \
+    rustup default 1.81.0 && \
+    rustup target add riscv32im-risc0-zkvm-elf --toolchain 1.81.0
 
 # Build the host binary in release mode
 RUN cargo build --release -p host
