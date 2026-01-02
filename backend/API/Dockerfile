@@ -18,6 +18,12 @@ RUN cargo build --release -p host
 # Runtime stage - minimal image
 FROM debian:bookworm-slim
 
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy the compiled binary from builder
