@@ -8,9 +8,9 @@ ENV PATH="/root/.risc0/bin:${PATH}"
 
 # Install specific versions to avoid GitHub API rate limits and ensure reproducibility
 # Using versions compatible with risc0-zkvm 3.0.4
-RUN rzup install rust 1.81.0 && \
-    rzup install cargo-risczero 3.0.4 && \
-    rzup install r0vm 3.0.4
+RUN rzup install rust 1.88.0 && \
+    rzup install cargo-risczero 3.0.3 && \
+    rzup install r0vm 3.0.3
 
 # Copy source code
 COPY . .
