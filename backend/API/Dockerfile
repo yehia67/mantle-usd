@@ -21,7 +21,11 @@ RUN cargo build --release -p host
 # Runtime stage - use same rust:1.89 base to match glibc version from builder
 FROM --platform=linux/amd64 rust:1.89
 
-# Runtime dependencies are already included in rust:1.89 base image
+# Install runtime dependencies needed by RISC Zero binaries
+RUN apt-get update && apt-get install -y \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
