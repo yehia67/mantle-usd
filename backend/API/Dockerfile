@@ -36,6 +36,9 @@ ENV XDG_CONFIG_HOME=/app/.config
 ENV XDG_DATA_HOME=/app/.local
 ENV RUST_BACKTRACE=1
 
+# Prevent boundless-market from trying to initialize storage providers
+ENV STORAGE_PROVIDER=none
+
 # Copy the compiled binary from builder
 COPY --from=builder /app/target/release/host /app/host
 
