@@ -1,10 +1,13 @@
-FROM rust:1.89 as builder
+FROM --platform=linux/amd64 rust:1.89 as builder
 
 WORKDIR /app
 
-# Install RISC Zero toolchain - use cargo-risczero directly to avoid GitHub API
-RUN cargo install cargo-risczero --version 1.2.0
-RUN cargo risczero install
+# Install RISC Zero toolchain
+RUN curl -L https://risczero.com/install | bash && \
+    . /root/.bashrc && \
+    /root/.risc0/bin/rzup install rust
+
+ENV PATH="/root/.risc0/bin:/root/.cargo/bin:${PATH}"
 
 # Copy source code
 COPY . .
