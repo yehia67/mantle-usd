@@ -36,12 +36,18 @@ RUN mkdir -p /app/.cache /app/.local /app/.config /root/.cache /root/.local /roo
 # Copy RISC Zero toolchain from builder (needed by boundless-market at runtime)
 COPY --from=builder /root/.risc0 /root/.risc0
 
+# Copy Rust toolchain from builder (boundless-market might need rustc/cargo at runtime)
+COPY --from=builder /usr/local/rustup /usr/local/rustup
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+
 # Ensure RISC Zero binaries are executable
 RUN chmod -R +x /root/.risc0/bin || true
 
 # Set environment variables for storage locations and RISC Zero
 ENV HOME=/app
-ENV PATH="/root/.risc0/bin:${PATH}"
+ENV PATH="/root/.risc0/bin:/usr/local/cargo/bin:${PATH}"
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
 ENV XDG_CACHE_HOME=/app/.cache
 ENV XDG_CONFIG_HOME=/app/.config
 ENV XDG_DATA_HOME=/app/.local
