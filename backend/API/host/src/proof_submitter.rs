@@ -2,7 +2,7 @@
 use crate::types::{ComplianceOutcome, ComplianceRequest, ProofMetadata, UserResponse};
 use alloy::signers::local::PrivateKeySigner;
 use axum::extract::Json;
-use boundless_market::{request_builder::OfferParams, storage::storage_provider_from_env, Client};
+use boundless_market::{request_builder::OfferParams, Client};
 use methods::GUEST_CODE_FOR_ZK_PROOF_ID;
 use std::time::Duration;
 use url::Url;
@@ -16,7 +16,6 @@ pub async fn submit_proof_request(
     let client = Client::builder()
         .with_rpc_url(rpc_url)
         .with_private_key(signer.clone())
-        .with_storage_provider(Some(storage_provider_from_env()?))
         .build()
         .await?;
 
