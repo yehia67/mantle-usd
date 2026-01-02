@@ -15,8 +15,9 @@ COPY . .
 # Build the host binary in release mode
 RUN cargo build --release -p host
 
-# Runtime stage - minimal image
-FROM debian:bookworm-slim
+# Runtime stage - use same Debian version as rust:1.89 base (Debian Bookworm)
+# But we need the full bookworm, not slim, to get newer glibc
+FROM --platform=linux/amd64 debian:bookworm
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
