@@ -2,15 +2,18 @@ FROM --platform=linux/amd64 rust:1.89 as builder
 
 WORKDIR /app
 
-# Install the riscv32 target for the standard Rust toolchain
-RUN rustup target add riscv32imac-unknown-none-elf
+# Install rzup and RISC Zero toolchain with pinned versions (CI best practice)
+RUN curl -L https://risczero.com/install | bash
+ENV PATH="/root/.risc0/bin:${PATH}"
+
+# Install specific versions to avoid GitHub API rate limits and ensure reproducibility
+# Using versions compatible with risc0-zkvm 3.0.4
+RUN rzup install rust 1.81.0 && \
+    rzup install cargo-risczero 1.1.2 && \
+    rzup install r0vm 1.1.2
 
 # Copy source code
 COPY . .
-
-# Set environment variable to skip RISC Zero toolchain check during build
-# The guest code will be built with the standard Rust riscv32 target
-ENV RISC0_SKIP_BUILD=1
 
 # Build the host binary in release mode
 RUN cargo build --release -p host
