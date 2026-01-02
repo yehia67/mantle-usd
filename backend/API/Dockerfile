@@ -32,6 +32,9 @@ RUN mkdir -p /app/.cache /app/.local /app/.config /root/.cache /root/.local /roo
 # Copy RISC Zero toolchain from builder (needed by boundless-market at runtime)
 COPY --from=builder /root/.risc0 /root/.risc0
 
+# Ensure RISC Zero binaries are executable
+RUN chmod -R +x /root/.risc0/bin || true
+
 # Set environment variables for storage locations and RISC Zero
 ENV HOME=/app
 ENV PATH="/root/.risc0/bin:${PATH}"
