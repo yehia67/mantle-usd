@@ -29,8 +29,12 @@ WORKDIR /app
 RUN mkdir -p /app/.cache /app/.local /app/.config /root/.cache /root/.local /root/.config /tmp && \
     chmod -R 777 /app /root /tmp
 
-# Set environment variables for storage locations
+# Copy RISC Zero toolchain from builder (needed by boundless-market at runtime)
+COPY --from=builder /root/.risc0 /root/.risc0
+
+# Set environment variables for storage locations and RISC Zero
 ENV HOME=/app
+ENV PATH="/root/.risc0/bin:${PATH}"
 ENV XDG_CACHE_HOME=/app/.cache
 ENV XDG_CONFIG_HOME=/app/.config
 ENV XDG_DATA_HOME=/app/.local
