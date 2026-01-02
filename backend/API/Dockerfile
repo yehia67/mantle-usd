@@ -25,6 +25,10 @@ FROM --platform=linux/amd64 rust:1.89
 
 WORKDIR /app
 
+# Create directories that boundless-market might need for caching/storage
+RUN mkdir -p /app/.cache /app/.local /tmp && \
+    chmod -R 777 /app/.cache /app/.local /tmp
+
 # Copy the compiled binary from builder
 COPY --from=builder /app/target/release/host /app/host
 

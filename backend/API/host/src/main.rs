@@ -42,17 +42,13 @@ async fn main() -> Result<()> {
     // now create the SigningKey
     let signing_key = SigningKey::from_bytes((&private_key_array).into())?;
     let signer = PrivateKeySigner::from(signing_key);
-    let mut program_cid: String = String::new();
-    match upload_guest_to_pinata().await {
-        Ok(data) => {
-            println!("File uploaded successfully!");
-            println!("CID: {}", data.cid);
-            program_cid = data.cid;
-        }
-        Err(err) => eprintln!("Error: {}", err),
-    }
+    
+    // Fetch guest program CID (from PINATA_CID env var)
+    let pinata_data = upload_guest_to_pinata().await?;
+    println!("✅ Guest program CID: {}", pinata_data.cid);
+    
     let guest_program_url =
-        Url::parse(&format!("https://gateway.pinata.cloud/ipfs/{program_cid}"))?;
+        Url::parse(&format!("https://gateway.pinata.cloud/ipfs/{}", pinata_data.cid))?;
 
     // --- Axum server ---
     let state = Arc::new(AppState {
