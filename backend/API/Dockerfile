@@ -1,6 +1,13 @@
 FROM rust:1.89 as builder
 
 WORKDIR /app
+
+# Install RISC Zero toolchain
+RUN curl -L https://risczero.com/install | bash
+ENV PATH="/root/.risc0/bin:${PATH}"
+RUN rzup install
+
+# Copy source code
 COPY . .
 
 # Build the host binary in release mode
