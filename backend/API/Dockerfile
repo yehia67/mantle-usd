@@ -18,15 +18,10 @@ COPY . .
 # Build the host binary in release mode
 RUN cargo build --release -p host
 
-# Runtime stage - use same Debian version as rust:1.89 base (Debian Bookworm)
-# But we need the full bookworm, not slim, to get newer glibc
-FROM --platform=linux/amd64 debian:bookworm
+# Runtime stage - use same rust:1.89 base to match glibc version from builder
+FROM --platform=linux/amd64 rust:1.89
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libssl3 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Runtime dependencies are already included in rust:1.89 base image
 
 WORKDIR /app
 
