@@ -38,22 +38,19 @@ async fn main() -> Result<()> {
     // decode hex into Vec<u8>
     let private_key_bytes = hex::decode(&private_key_hex)?;
 
-    // convert Vec<u8> → [u8; 32]
     let private_key_array: [u8; 32] = private_key_bytes
         .as_slice()
         .try_into()
         .expect("private key must be exactly 32 bytes");
 
-    // now create the SigningKey
     let signing_key = SigningKey::from_bytes((&private_key_array).into())?;
     let signer = PrivateKeySigner::from(signing_key);
     
-    let port = env::var("HOST_PORT").unwrap_or_else(|_| "5001".to_string());
+    println!("✅ Serving guest ELF from API (no Pinata needed)");
     
-    println!("✅ Serving guest ELF locally (no Pinata needed)");
-    
-    // Point to our local /guest_elf endpoint
-    let guest_program_url = Url::parse(&format!("http://localhost:{}/guest_elf", port))?;
+    let guest_program_url = env::var("GUEST_ELF_URL")
+        .unwrap_or_else(|_| "https://mantle-usd.onrender.com/guest_elf".to_string());
+    let guest_program_url = Url::parse(&guest_program_url)?;
 
     // --- Axum server ---
     let state = Arc::new(AppState {
@@ -79,12 +76,12 @@ async fn main() -> Result<()> {
         )
         .route("/guest_elf", get(serve_guest_elf))
         .layer(cors)
-        .with_state(state);
+        .with_state(state.clone());
 
     let port = env::var("HOST_PORT").expect("HOST_PORT env var must be set");
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     println!("🚀 Axum running on http://0.0.0.0:{}", port);
-    println!("📦 Guest ELF available at http://localhost:{}/guest_elf", port);
+    println!("📦 Guest ELF URL: {}", state.guest_program_url);
     axum::serve(listener, app).await?;
 
     Ok(())
