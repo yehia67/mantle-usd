@@ -101,7 +101,6 @@ export function ComplianceModal({
   isOpen, 
   onClose, 
   poolId, 
-  assetSymbol,
   swapAmount,
   onComplianceSuccess 
 }: ComplianceModalProps) {
@@ -202,7 +201,7 @@ export function ComplianceModal({
         : '0x' + '00'.repeat(32);
 
       // Parse imageId from U256 format
-      let imageId = '0xcc8d9e54ea35adb5416485e372c5db1928bb4cc60b93e494ad227c50ef5b1082'; // @ToDo to be added on env variables
+      const imageId = '0xcc8d9e54ea35adb5416485e372c5db1928bb4cc60b93e494ad227c50ef5b1082'; // @ToDo to be added on env variables
      
       const proof: ComplianceProof = {
         seal: sealBytes,
@@ -241,7 +240,7 @@ export function ComplianceModal({
                 to verify compliance while preserving your privacy. Only the verification of compliance 
                 is recorded on-chain, not your personal data.
               </p>
-            </div>
+            </div> 
           </div>
 
           {/* Pool Requirements */}

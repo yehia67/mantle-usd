@@ -43,12 +43,12 @@ export function PoolsUserPanel() {
   const [swapDirection, setSwapDirection] = useState<'mUSDtoRWA' | 'RWAtoMUSD'>('mUSDtoRWA');
   const [action, setAction] = useState<'addLiquidity' | 'swap'>('addLiquidity');
   const [showComplianceModal, setShowComplianceModal] = useState(false);
-  const [complianceProof, setComplianceProof] = useState<ComplianceProof | null>(null);
+  const [, setComplianceProof] = useState<ComplianceProof | null>(null);
   const { data, loading, refetch } = useQuery(GET_POOLS);
   const { address } = useAppKitAccount();
   const { showToast } = useToast();
   
-  const selectedPoolData = data?.rwapools?.find((p: any) => p.id === selectedPool);
+  const selectedPoolData = data?.rwapools?.find((p: unknown) => (p as { id: string }).id === selectedPool);
   const rwaTokenAddress = selectedPoolData?.rwaToken; // Get actual RWA token address from subgraph
   
   const { 
