@@ -385,7 +385,12 @@ export function PoolsUserPanel() {
         <ComplianceModal
           isOpen={showComplianceModal}
           onClose={() => setShowComplianceModal(false)}
-          poolId={selectedPoolData?.assetSymbol?.toLowerCase().replace(/\s+/g, '_') || 'gold'}
+          poolId={
+            selectedPoolData?.assetSymbol === 'Gold' ? 'gold' :
+            selectedPoolData?.assetSymbol === 'Money Market Share' ? 'money_market' :
+            selectedPoolData?.assetSymbol === 'Real Estate Share' ? 'real_estate' :
+            'gold'
+          }
           assetSymbol={selectedPoolData?.assetSymbol || ''}
           swapAmount={amount}
           onComplianceSuccess={handleComplianceSuccess}

@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5000
+@baseUrl = https://mantle-usd.onrender.com
 @contentType = application/json
 
 ### Root health check
@@ -14,7 +14,7 @@ POST {{baseUrl}}/validate_user
 Content-Type: {{contentType}}
 
 {
-  "user": "0x1111222233334444555566667777888899990000",
+  "user": "0x2111222233334444555566667777888899990000",
   "pool_id": "gold",
   "residency": "US",
   "kyc_level": 2,

@@ -157,7 +157,7 @@ export function ComplianceModal({
       }
 
       // Call Rust API
-      const apiUrl = process.env.NEXT_PUBLIC_COMPLIANCE_API_URL || 'http://localhost:5001';
+      const apiUrl = process.env.NEXT_PUBLIC_COMPLIANCE_API_URL || 'https://mantle-usd.onrender.com';
       const response = await fetch(`${apiUrl}/validate_user`, {
         method: 'POST',
         headers: {
