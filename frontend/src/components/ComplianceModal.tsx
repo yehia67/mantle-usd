@@ -238,7 +238,7 @@ export function ComplianceModal({
               <strong>Your Privacy is Protected</strong>
               <p>
                 The information you provide is not shared publicly. We use zero-knowledge proofs 
-                to verify compliance while preserving your privacy. Only the proof of compliance 
+                to verify compliance while preserving your privacy. Only the verification of compliance 
                 is recorded on-chain, not your personal data.
               </p>
             </div>
