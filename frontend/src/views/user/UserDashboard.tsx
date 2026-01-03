@@ -38,7 +38,7 @@ const GET_PROTOCOL_STATS = gql`
 
 export function UserDashboard() {
   const { address } = useAppKitAccount();
-  const { data, loading, error, refetch } = useQuery(address ? GET_USER_DATA : GET_PROTOCOL_STATS, {
+  const { data, loading, error } = useQuery(address ? GET_USER_DATA : GET_PROTOCOL_STATS, {
     variables: address ? { id: address.toLowerCase() } : undefined,
   });
   
