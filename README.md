@@ -369,3 +369,9 @@ sequenceDiagram
 
 ```
 
+## Project Progress & Task Dashboard
+
+Development tasks, milestones, and feature progress are tracked publicly using GitHub Projects:
+
+https://github.com/users/yehia67/projects/4/views/2
+
