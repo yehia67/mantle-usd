@@ -1,4 +1,3 @@
-// use anyhow::Result;
 use crate::types::{ComplianceOutcome, ComplianceRequest, ProofMetadata, UserResponse};
 use alloy::signers::local::PrivateKeySigner;
 use axum::extract::Json;
@@ -19,7 +18,7 @@ pub async fn submit_proof_request(
         .await?;
 
     println!("🚀 Submitting Boundless request");
-    println!("🌍 Program URL = {}", guest_program_url);
+    println!("📦 Using guest ELF from: {}", guest_program_url);
     let stdin = payload.to_guest_stdin()?;
 
     let request = client

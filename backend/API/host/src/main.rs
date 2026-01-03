@@ -13,14 +13,14 @@ use tower_http::cors::{CorsLayer, Any};
 use url::Url;
 
 mod cache;
-mod pinata;
+mod elf_server;
 mod policy;
 mod proof_submitter;
 mod types;
 mod utils;
 
 use crate::cache::*;
-use crate::pinata::*;
+use crate::elf_server::*;
 use crate::policy::*;
 use crate::proof_submitter::*;
 use crate::types::*;
@@ -29,6 +29,9 @@ use crate::utils::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load .env file
+    dotenvy::dotenv().ok();
+    
     // --- Env vars ---
     let rpc_url = Url::parse(&env::var("RPC_URL")?)?;
     let private_key_hex = env::var("PRIVATE_KEY")?;
@@ -45,12 +48,12 @@ async fn main() -> Result<()> {
     let signing_key = SigningKey::from_bytes((&private_key_array).into())?;
     let signer = PrivateKeySigner::from(signing_key);
     
-    // Fetch guest program CID (from PINATA_CID env var)
-    let pinata_data = upload_guest_to_pinata().await?;
-    println!("✅ Guest program CID: {}", pinata_data.cid);
+    let port = env::var("HOST_PORT").unwrap_or_else(|_| "5001".to_string());
     
-    let guest_program_url =
-        Url::parse(&format!("https://gateway.pinata.cloud/ipfs/{}", pinata_data.cid))?;
+    println!("✅ Serving guest ELF locally (no Pinata needed)");
+    
+    // Point to our local /guest_elf endpoint
+    let guest_program_url = Url::parse(&format!("http://localhost:{}/guest_elf", port))?;
 
     // --- Axum server ---
     let state = Arc::new(AppState {
@@ -74,16 +77,16 @@ async fn main() -> Result<()> {
             "/compliance/pools",
             post(post_compliance_pools_handler),
         )
+        .route("/guest_elf", get(serve_guest_elf))
         .layer(cors)
         .with_state(state);
 
     let port = env::var("HOST_PORT").expect("HOST_PORT env var must be set");
-    let address = format!("0.0.0.0:{port}");
-    let listener = tokio::net::TcpListener::bind(&address).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+    println!("🚀 Axum running on http://0.0.0.0:{}", port);
+    println!("📦 Guest ELF available at http://localhost:{}/guest_elf", port);
+    axum::serve(listener, app).await?;
 
-    println!("🚀 Axum running on http://{address}");
-
-    axum::serve(listener, app).await.unwrap();
     Ok(())
 }
 
@@ -166,12 +169,6 @@ async fn post_validate_user(
         }
         Err(e) => {
             eprintln!("❌ Proof submission failed: {:?}", e);
-            eprintln!("❌ Error source chain:");
-            let mut source = e.source();
-            while let Some(err) = source {
-                eprintln!("  Caused by: {:?}", err);
-                source = err.source();
-            }
             return Json(UserResponse {
                 message: format!("Proof generation failed: {}", e),
                 outcome: ComplianceOutcome {
