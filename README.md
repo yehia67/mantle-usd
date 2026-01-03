@@ -68,6 +68,9 @@ The protocol consists of:
 
 * **GraphQL Endpoint**
   [https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn](https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn)
+### Rust Middleware (Proof Submitter to decentralized proofers marketplace [Boundless](https://boundless.network/))
+
+https://mantle-usd.onrender.com
 
 ### Platform Setup Script
 
