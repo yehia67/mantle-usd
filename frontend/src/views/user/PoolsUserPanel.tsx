@@ -35,11 +35,15 @@ interface ComplianceProof {
   };
 }
 
-export function PoolsUserPanel() {
+interface PoolsUserPanelProps {
+  onTransactionComplete?: () => void;
+}
+
+export function PoolsUserPanel({ onTransactionComplete }: PoolsUserPanelProps) {
   const [selectedPool, setSelectedPool] = useState<string | null>(null);
-  const [amount, setAmount] = useState('');
   const [amountMUSD, setAmountMUSD] = useState('');
   const [amountRWA, setAmountRWA] = useState('');
+  const [amount, setAmount] = useState('');
   const [swapDirection, setSwapDirection] = useState<'mUSDtoRWA' | 'RWAtoMUSD'>('mUSDtoRWA');
   const [action, setAction] = useState<'addLiquidity' | 'swap'>('addLiquidity');
   const [showComplianceModal, setShowComplianceModal] = useState(false);
@@ -190,8 +194,10 @@ export function PoolsUserPanel() {
         showToast(`Swap successful! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
         setComplianceProof(null);
-        // Wait for subgraph to index the transaction before refetching
-        setTimeout(() => refetch(), 3000);
+        setTimeout(() => {
+          refetch();
+          onTransactionComplete?.();
+        }, 3000);
       }
     } catch (error) {
       showToast((error as Error).message || 'Swap failed', 'error');
@@ -214,8 +220,10 @@ export function PoolsUserPanel() {
           showToast(`Liquidity added! Hash: ${txHash.slice(0, 10)}...`, 'success');
           setAmountMUSD('');
           setAmountRWA('');
-          // Wait for subgraph to index the transaction before refetching
-          setTimeout(() => refetch(), 3000);
+          setTimeout(() => {
+            refetch();
+            onTransactionComplete?.();
+          }, 3000);
         }
       }
     } catch (error) {
