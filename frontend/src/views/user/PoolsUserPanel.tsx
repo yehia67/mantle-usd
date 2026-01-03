@@ -239,7 +239,7 @@ export function PoolsUserPanel() {
                 <th>Asset</th>
                 <th>mUSD Reserve</th>
                 <th>RWA Reserve</th>
-                <th>Total Liquidity</th>
+                <th>LP Token Supply</th>
                 <th>Volume</th>
                 <th>Swaps</th>
                 <th></th>
@@ -251,7 +251,7 @@ export function PoolsUserPanel() {
                   <td>{pool.assetSymbol}</td>
                   <td>{formatMUSD(pool.reserveMUSD)} mUSD</td>
                   <td>{formatToken(pool.reserveRWA)}</td>
-                  <td>{formatToken(pool.totalLiquidity)}</td>
+                  <td>{formatToken(pool.totalLiquidity)} LP</td>
                   <td>{formatMUSD(pool.totalVolume)} mUSD</td>
                   <td>{pool.totalSwaps}</td>
                   <td>
