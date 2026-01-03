@@ -12,12 +12,14 @@ use std::{env, sync::Arc};
 use tower_http::cors::{CorsLayer, Any};
 use url::Url;
 
+mod cache;
 mod pinata;
 mod policy;
 mod proof_submitter;
 mod types;
 mod utils;
 
+use crate::cache::*;
 use crate::pinata::*;
 use crate::policy::*;
 use crate::proof_submitter::*;
@@ -141,6 +143,12 @@ async fn post_validate_user(
     rpc_url: Url,
     guest_program_url: Url,
 ) -> Json<UserResponse> {
+    // Check cache first
+    if let Some(cached_response) = get_cached_response(&payload) {
+        println!("🎯 Cache hit! Returning cached response");
+        return Json(cached_response);
+    }
+
     let preliminary_outcome = evaluate(&payload);
     if !preliminary_outcome.allowed {
         return Json(UserResponse {
@@ -150,7 +158,35 @@ async fn post_validate_user(
         });
     }
 
-    submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
-        .await
-        .expect("zk proof failed")
+    let response = match submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload.clone())).await {
+        Ok(resp) => {
+            // Cache the successful response
+            cache_response(&payload, &resp);
+            resp
+        }
+        Err(e) => {
+            eprintln!("❌ Proof submission failed: {:?}", e);
+            eprintln!("❌ Error source chain:");
+            let mut source = e.source();
+            while let Some(err) = source {
+                eprintln!("  Caused by: {:?}", err);
+                source = err.source();
+            }
+            return Json(UserResponse {
+                message: format!("Proof generation failed: {}", e),
+                outcome: ComplianceOutcome {
+                    user: payload.user.clone(),
+                    pool_id: payload.pool_id,
+                    allowed: false,
+                    reason: format!("System error: {}", e),
+                    max_allocation: 0,
+                    requested_amount: payload.requested_amount,
+                    exposure_musd: payload.exposure_musd,
+                },
+                proof: None,
+            });
+        }
+    };
+    
+    response
 }

@@ -63,7 +63,7 @@ impl ComplianceOutcome {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProofMetadata {
     pub journal: Vec<u8>,
     pub seal: Vec<u8>,
@@ -96,7 +96,7 @@ impl ProofMetadata {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UserResponse {
     pub outcome: ComplianceOutcome,
     pub proof: Option<ProofMetadata>,

@@ -3,7 +3,6 @@ use crate::types::{ComplianceOutcome, ComplianceRequest, ProofMetadata, UserResp
 use alloy::signers::local::PrivateKeySigner;
 use axum::extract::Json;
 use boundless_market::{request_builder::OfferParams, Client};
-use methods::GUEST_CODE_FOR_ZK_PROOF_ID;
 use std::time::Duration;
 use url::Url;
 
@@ -27,7 +26,6 @@ pub async fn submit_proof_request(
         .new_request()
         .with_program_url(guest_program_url)?
         .with_stdin(stdin)
-        .with_image_id(GUEST_CODE_FOR_ZK_PROOF_ID)
         .with_offer(
             OfferParams::builder()
                 .ramp_up_period(30)
