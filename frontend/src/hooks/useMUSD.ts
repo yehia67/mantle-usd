@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useContract } from './useContract';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
-import { parseMUSD, parseToken } from '@/utils/decimals';
+import { parseToken } from '@/utils/decimals';
 import MUSD_ABI from '@/abis/MUSD.json';
 import ERC20_ABI from '@/abis/ERC20.json';
 
@@ -77,33 +77,6 @@ export function useMUSD() {
     }
   };
 
-  const mint = async (to: string, amount: string) => {
-    if (!musdContract) throw new Error('Not connected');
-    
-    setLoading(true);
-    try {
-      const musd = await musdContract.write();
-      const tx = await musd.mint(to, parseMUSD(amount));
-      await tx.wait();
-      return tx.hash;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const burn = async (from: string, amount: string) => {
-    if (!musdContract) throw new Error('Not connected');
-    
-    setLoading(true);
-    try {
-      const musd = await musdContract.write();
-      const tx = await musd.burn(from, parseMUSD(amount));
-      await tx.wait();
-      return tx.hash;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const liquidate = async (account: string) => {
     if (!musdContract) throw new Error('Not connected');

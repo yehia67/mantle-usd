@@ -16,6 +16,10 @@ export function UserView() {
   const [minting, setMinting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const handleTransactionComplete = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   const handleMintMETH = async () => {
     if (!address) {
       showToast('Please connect your wallet', 'error');
@@ -26,9 +30,7 @@ export function UserView() {
     try {
       const txHash = await mintMETH();
       showToast(`Minted 10 mETH! Hash: ${txHash.slice(0, 10)}...`, 'success');
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1);
-      }, 2000);
+      setTimeout(handleTransactionComplete, 2000);
     } catch (error) {
       showToast((error as Error).message || 'Mint failed', 'error');
     } finally {
@@ -82,11 +84,11 @@ export function UserView() {
       </div>
       <UserDashboard key={refreshKey} />
       <div className="grid grid-2 mt-4">
-        <MUSDPositionPanel />
-        <SuperStakeUserPanel />
+        <MUSDPositionPanel onTransactionComplete={handleTransactionComplete} />
+        <SuperStakeUserPanel onTransactionComplete={handleTransactionComplete} />
       </div>
       <div className="mt-4">
-        <PoolsUserPanel />
+        <PoolsUserPanel onTransactionComplete={handleTransactionComplete} />
       </div>
     </div>
   );

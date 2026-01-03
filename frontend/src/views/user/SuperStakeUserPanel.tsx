@@ -33,7 +33,11 @@ const GET_SUPERSTAKE_POSITION = gql`
   }
 `;
 
-export function SuperStakeUserPanel() {
+interface SuperStakeUserPanelProps {
+  onTransactionComplete?: () => void;
+}
+
+export function SuperStakeUserPanel({ onTransactionComplete }: SuperStakeUserPanelProps) {
   const { address } = useAppKitAccount();
   const [amount, setAmount] = useState('');
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
@@ -89,7 +93,10 @@ export function SuperStakeUserPanel() {
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
-        setTimeout(() => refetch(), 3000);
+        setTimeout(() => {
+          refetch();
+          onTransactionComplete?.();
+        }, 3000);
       }
     } catch (error) {
       showToast((error as Error).message || 'Transaction failed', 'error');

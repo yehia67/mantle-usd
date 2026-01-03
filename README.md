@@ -52,6 +52,15 @@ The protocol consists of:
 * **RWA Pool Factory**
   [https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC](https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC)
 
+* **Gold Pool**
+  [https://sepolia.mantlescan.xyz/address/0x43bfa0778fc67dab8b26fc73b768c03680a13670](https://sepolia.mantlescan.xyz/address/0x43bfa0778fc67dab8b26fc73b768c03680a13670)
+
+* **Real Estate Pool**
+  [https://sepolia.mantlescan.xyz/address/0xbbfb84101adf968962026abac9006cb62b4e1ace](https://sepolia.mantlescan.xyz/address/0xbbfb84101adf968962026abac9006cb62b4e1ace)
+
+* **Money Market Pool**
+  [https://sepolia.mantlescan.xyz/address/0x880ce950258e591c4360030fc8675d3e33de3aef](https://sepolia.mantlescan.xyz/address/0x880ce950258e591c4360030fc8675d3e33de3aef)
+
 ### Mantle Subgraph & GraphQL
 
 * **Mantle Subgraph Dashboard**
@@ -59,6 +68,9 @@ The protocol consists of:
 
 * **GraphQL Endpoint**
   [https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn](https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn)
+### Rust Middleware (Proof Submitter to decentralized proofers marketplace [Boundless](https://boundless.network/))
+
+https://mantle-usd.onrender.com
 
 ### Platform Setup Script
 
