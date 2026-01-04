@@ -7,6 +7,11 @@ import { ToastProvider } from '@/components/Toast';
 export const metadata: Metadata = {
   title: "mUSD Protocol",
   description: "Mantle USD Protocol Dashboard",
+  icons: {
+    icon: "/musd_rwa.png",
+    shortcut: "/musd_rwa.png",
+    apple: "/musd_rwa.png",
+  },
 };
 
 export default async function RootLayout({
