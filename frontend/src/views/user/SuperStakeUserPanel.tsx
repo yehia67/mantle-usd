@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { gql, useQuery } from '@apollo/client';
+import { formatUnits } from 'ethers';
 import { formatMUSD, formatToken } from '@/utils/format';
 import { useSuperStake } from '@/hooks/useSuperStake';
 import { useToast } from '@/components/Toast';
@@ -71,6 +72,23 @@ export function SuperStakeUserPanel({ onTransactionComplete }: SuperStakeUserPan
       }
     }
   };
+
+  const handleMaxWithdraw = async () => {
+    if (!position?.active) return;
+    const maxAmount = formatUnits(position.collateralLocked, 18);
+    setAmount(maxAmount);
+    await checkWithdrawApproval(maxAmount);
+  };
+
+  useEffect(() => {
+    if (amount) {
+      if (action === 'deposit') {
+        checkDepositApproval(amount);
+      } else if (action === 'withdraw') {
+        checkWithdrawApproval(amount);
+      }
+    }
+  }, [action]);
 
   const handleApprove = async () => {
     try {
@@ -149,7 +167,7 @@ export function SuperStakeUserPanel({ onTransactionComplete }: SuperStakeUserPan
           />
           {action === 'withdraw' && position?.active && (
             <button 
-              onClick={() => setAmount(formatToken(position.collateralLocked, 18))}
+              onClick={handleMaxWithdraw}
               type="button"
               style={{
                 position: 'absolute',
