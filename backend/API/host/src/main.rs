@@ -9,8 +9,10 @@ use axum::{
 use k256::ecdsa::SigningKey;
 use serde_json::json;
 use std::{env, sync::Arc};
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{Any, CorsLayer};
 use url::Url;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod cache;
 mod elf_server;
@@ -20,18 +22,41 @@ mod types;
 mod utils;
 
 use crate::cache::*;
-use crate::elf_server::*;
+use crate::elf_server::serve_guest_elf;
 use crate::policy::*;
 use crate::proof_submitter::*;
 use crate::types::*;
 use crate::utils::*;
 
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "mUSD RWA Compliance & Proof Orchestration API",
+        version = "1.0.0",
+        description = "Routing layer that enforces pool-specific compliance policies, orchestrates Boundless proof submissions, and returns verifiable attestations for regulated mUSD ↔ RWA markets."
+    ),
+    paths(
+        root,
+        get_validate_user,
+        post_validate_user_handler,
+        post_compliance_pools_handler,
+        serve_guest_elf_endpoint
+    ),
+    components(schemas(
+        ComplianceRequest,
+        ComplianceOutcome,
+        ProofMetadata,
+        UserResponse,
+        PoolId
+    ))
+)]
+struct ApiDoc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().ok();
-    
+
     // --- Env vars ---
     let rpc_url = Url::parse(&env::var("RPC_URL")?)?;
     let private_key_hex = env::var("PRIVATE_KEY")?;
@@ -45,9 +70,9 @@ async fn main() -> Result<()> {
 
     let signing_key = SigningKey::from_bytes((&private_key_array).into())?;
     let signer = PrivateKeySigner::from(signing_key);
-    
+
     println!("✅ Serving guest ELF from API (no Pinata needed)");
-    
+
     let guest_program_url = env::var("GUEST_ELF_URL")
         .unwrap_or_else(|_| "https://mantle-usd.onrender.com/guest_elf".to_string());
     let guest_program_url = Url::parse(&guest_program_url)?;
@@ -65,34 +90,49 @@ async fn main() -> Result<()> {
         .allow_headers(Any);
 
     let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(root))
         .route(
             "/validate_user",
             get(get_validate_user).post(post_validate_user_handler),
         )
-        .route(
-            "/compliance/pools",
-            post(post_compliance_pools_handler),
-        )
-        .route("/guest_elf", get(serve_guest_elf))
-        .layer(cors)
-        .with_state(state.clone());
+        .route("/compliance/pools", post(post_compliance_pools_handler))
+        .route("/guest_elf", get(serve_guest_elf_endpoint))
+        .with_state(state.clone())
+        .layer(cors);
 
     let port = env::var("HOST_PORT").expect("HOST_PORT env var must be set");
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     println!("🚀 Axum running on http://0.0.0.0:{}", port);
     println!("📦 Guest ELF URL: {}", state.guest_program_url);
+    println!("📚 Swagger UI: http://0.0.0.0:{}/swagger-ui", port);
     axum::serve(listener, app).await?;
 
     Ok(())
 }
 
 // GET /
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "Health",
+    responses(
+        (status = 200, description = "API health", body = serde_json::Value, example = json!({"message": "Welcome to the compliance API!"}))
+    )
+)]
 async fn root() -> Json<serde_json::Value> {
     Json(json!({"message": "Welcome to the compliance API!"}))
 }
 
 // GET /validate_user
+#[utoipa::path(
+    get,
+    path = "/validate_user",
+    tag = "Compliance",
+    responses(
+        (status = 200, description = "Schema information", body = serde_json::Value)
+    )
+)]
 async fn get_validate_user() -> Json<serde_json::Value> {
     Json(json!({
         "message": "POST /validate_user or /compliance/pools with full compliance payload",
@@ -111,6 +151,17 @@ async fn get_validate_user() -> Json<serde_json::Value> {
 }
 
 // POST /validate_user
+#[utoipa::path(
+    post,
+    path = "/validate_user",
+    tag = "Compliance",
+    request_body = ComplianceRequest,
+    responses(
+        (status = 200, description = "Compliance evaluation", body = UserResponse),
+        (status = 400, description = "Invalid payload"),
+        (status = 500, description = "Proof generation failure")
+    )
+)]
 async fn post_validate_user_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ComplianceRequest>,
@@ -124,6 +175,17 @@ async fn post_validate_user_handler(
     .await
 }
 
+#[utoipa::path(
+    post,
+    path = "/compliance/pools",
+    tag = "Compliance",
+    request_body = ComplianceRequest,
+    responses(
+        (status = 200, description = "Pool compliance evaluation", body = UserResponse),
+        (status = 400, description = "Invalid payload"),
+        (status = 500, description = "Proof generation failure")
+    )
+)]
 async fn post_compliance_pools_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ComplianceRequest>,
@@ -135,6 +197,18 @@ async fn post_compliance_pools_handler(
         state.guest_program_url.clone(),
     )
     .await
+}
+
+#[utoipa::path(
+    get,
+    path = "/guest_elf",
+    tag = "Assets",
+    responses(
+        (status = 200, description = "Embedded guest ELF", content_type = "application/octet-stream")
+    )
+)]
+async fn serve_guest_elf_endpoint() -> impl IntoResponse {
+    serve_guest_elf().await
 }
 
 async fn post_validate_user(
@@ -158,7 +232,14 @@ async fn post_validate_user(
         });
     }
 
-    let response = match submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload.clone())).await {
+    let response = match submit_proof_request(
+        &signer,
+        rpc_url,
+        guest_program_url,
+        Json(payload.clone()),
+    )
+    .await
+    {
         Ok(resp) => {
             // Cache the successful response
             cache_response(&payload, &resp);
@@ -181,6 +262,6 @@ async fn post_validate_user(
             });
         }
     };
-    
+
     response
 }

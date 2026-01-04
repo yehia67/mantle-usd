@@ -3,8 +3,9 @@ use anyhow::Result;
 use risc0_zkvm::serde::{from_slice, to_vec};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PoolId {
     Gold,
@@ -22,16 +23,38 @@ impl fmt::Display for PoolId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(
+    example = json!({
+        "user": "0x2111222233334444555566667777888899990000",
+        "pool_id": "gold",
+        "residency": "US",
+        "kyc_level": 2,
+        "aml_passed": true,
+        "accredited_investor": true,
+        "exposure_musd": 20000,
+        "requested_amount": 10000,
+        "risk_score": 3
+    })
+)]
 pub struct ComplianceRequest {
+    #[schema(example = "0x2111222233334444555566667777888899990000")]
     pub user: String,
+    #[schema(example = "gold")]
     pub pool_id: PoolId,
+    #[schema(example = "US")]
     pub residency: String,
+    #[schema(example = 2, minimum = 0, maximum = 3)]
     pub kyc_level: u8,
+    #[schema(example = true)]
     pub aml_passed: bool,
+    #[schema(example = true)]
     pub accredited_investor: bool,
+    #[schema(example = 20000)]
     pub exposure_musd: u64,
+    #[schema(example = 10000)]
     pub requested_amount: u64,
+    #[schema(example = 3, minimum = 0, maximum = 10)]
     pub risk_score: u8,
 }
 
@@ -46,14 +69,32 @@ impl ComplianceRequest {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(
+    example = json!({
+        "user": "0x2111222233334444555566667777888899990000",
+        "pool_id": "gold",
+        "allowed": true,
+        "reason": "All compliance checks passed",
+        "max_allocation": 50000,
+        "requested_amount": 10000,
+        "exposure_musd": 20000
+    })
+)]
 pub struct ComplianceOutcome {
+    #[schema(example = "0x2111222233334444555566667777888899990000")]
     pub user: String,
+    #[schema(example = "gold")]
     pub pool_id: PoolId,
+    #[schema(example = true)]
     pub allowed: bool,
+    #[schema(example = "All compliance checks passed")]
     pub reason: String,
+    #[schema(example = 50000)]
     pub max_allocation: u64,
+    #[schema(example = 10000)]
     pub requested_amount: u64,
+    #[schema(example = 20000)]
     pub exposure_musd: u64,
 }
 
@@ -63,11 +104,15 @@ impl ComplianceOutcome {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ProofMetadata {
+    #[schema(value_type = String, example = "0xdeadbeef")]
     pub journal: Vec<u8>,
+    #[schema(value_type = String, example = "0xcafebabe")]
     pub seal: Vec<u8>,
+    #[schema(value_type = String, example = "0x123456789abcdef")]
     pub id: U256,
+    #[schema(example = "Gold proof | allowed: true | reason: All compliance checks passed")]
     pub summary: String,
 }
 
@@ -96,9 +141,25 @@ impl ProofMetadata {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[schema(
+    example = json!({
+        "outcome": {
+            "user": "0x2111222233334444555566667777888899990000",
+            "pool_id": "gold",
+            "allowed": true,
+            "reason": "All compliance checks passed",
+            "max_allocation": 50000,
+            "requested_amount": 10000,
+            "exposure_musd": 20000
+        },
+        "proof": null,
+        "message": "Compliance check passed"
+    })
+)]
 pub struct UserResponse {
     pub outcome: ComplianceOutcome,
     pub proof: Option<ProofMetadata>,
+    #[schema(example = "Compliance check passed")]
     pub message: String,
 }

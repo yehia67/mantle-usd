@@ -23,3 +23,5 @@ url = "2.5.7"
 alloy = "1.2.1"
 alloy-primitives = "1.5.2"
 dotenvy = "0.15"
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }

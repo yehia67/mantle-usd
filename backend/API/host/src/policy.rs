@@ -76,7 +76,9 @@ pub fn evaluate(request: &ComplianceRequest) -> ComplianceOutcome {
         ));
     }
 
-    let projected_exposure = request.exposure_musd.saturating_add(request.requested_amount);
+    let projected_exposure = request
+        .exposure_musd
+        .saturating_add(request.requested_amount);
     if projected_exposure > policy.max_total_exposure {
         failures.push(format!(
             "Projected exposure {} mUSD exceeds {} pool cap of {} mUSD",

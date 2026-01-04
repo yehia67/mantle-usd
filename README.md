@@ -70,7 +70,9 @@ The protocol consists of:
   [https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn](https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn)
 ### Rust Middleware (Proof Submitter to decentralized proofers marketplace [Boundless](https://boundless.network/))
 
-https://mantle-usd.onrender.com
+**API Endpoint:** https://mantle-usd.onrender.com
+
+**📚 Swagger UI (Interactive API Docs):** https://mantle-usd.onrender.com/swagger-ui
 
 ### Platform Setup Script
 
@@ -214,7 +216,7 @@ Each RWA pool is configured with:
 * A verifier contract address
 * A policy identifier (program hash / imageId)
 
-The system is ZK-provider agnostic and supports multiple verifiers simultaneously.
+The system is ZK-provider agnostic and supports multiple verifiers/proofers simultaneously.
 
 
 ### Flow: Compliance via Boundless
@@ -258,19 +260,19 @@ flowchart LR
 Each pool:
 
 * Uses its own verifier
-* Can rely on a different ZK backend
+* Can rely on a different ZK backend service
 * Enforces isolated compliance guarantees
 
 
-## Proofer (Off-chain)
+## Proof Submitter (Off-chain)
 
-The **Proofer** is a thin off-chain component responsible for **orchestrating proof requests**.
+The **Proofer Submitter** is a thin off-chain component responsible for **orchestrating proof requests**.
 
 The proofer:
 
 * Does **not** perform ZK computation
 * Does **not** generate proofs locally
-* Delegates all computation to **Boundless**
+* Delegates all computation to **Boundless** (other provider will be added in future)
 * Retrieves finalized proofs and forwards them
 
 This avoids centralized prover infrastructure and improves decentralization.

@@ -1,5 +1,5 @@
-use axum::response::{IntoResponse, Response};
 use axum::body::Body;
+use axum::response::{IntoResponse, Response};
 use methods::GUEST_CODE_FOR_ZK_PROOF_ELF;
 
 pub async fn serve_guest_elf() -> impl IntoResponse {
