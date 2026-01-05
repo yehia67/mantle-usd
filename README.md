@@ -377,3 +377,5 @@ Development tasks, milestones, and feature progress are tracked publicly using G
 
 https://github.com/users/yehia67/projects/4/views/2
 
+## Pitch Deck
+https://docs.google.com/presentation/d/17HaCssYgY5ZTQp_x2ts67K44u-KXvufb3JsnVtgAqBQ
