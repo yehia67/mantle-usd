@@ -1,0 +1,58 @@
+@baseUrl = https://mantle-usd.onrender.com
+@contentType = application/json
+
+### Root health check
+GET {{baseUrl}}/
+Content-Type: {{contentType}}
+
+### Validate user (GET help text)
+GET {{baseUrl}}/validate_user
+Content-Type: {{contentType}}
+
+### Gold pool – accredited US user (expected: allowed)
+POST {{baseUrl}}/validate_user
+Content-Type: {{contentType}}
+
+{
+  "user": "0x2111222233334444555566667777888899990000",
+  "pool_id": "gold",
+  "residency": "US",
+  "kyc_level": 2,
+  "aml_passed": true,
+  "accredited_investor": true,
+  "exposure_musd": 20000,
+  "requested_amount": 10000,
+  "risk_score": 3
+}
+
+### Money market – non-accredited investor (expected: rejected)
+POST {{baseUrl}}/validate_user
+Content-Type: {{contentType}}
+
+{
+  "user": "0x9999888877776666555544443333222211110000",
+  "pool_id": "money_market",
+  "residency": "US",
+  "kyc_level": 3,
+  "aml_passed": true,
+  "accredited_investor": false,
+  "exposure_musd": 30000,
+  "requested_amount": 10000,
+  "risk_score": 2
+}
+
+### Real estate – sanctioned residency (expected: rejected)
+POST {{baseUrl}}/compliance/pools
+Content-Type: {{contentType}}
+
+{
+  "user": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  "pool_id": "real_estate",
+  "residency": "RU",
+  "kyc_level": 3,
+  "aml_passed": true,
+  "accredited_investor": true,
+  "exposure_musd": 50000,
+  "requested_amount": 75000,
+  "risk_score": 4
+}

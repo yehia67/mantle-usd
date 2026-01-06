@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { gql, useQuery } from '@apollo/client';
+import { formatUnits } from 'ethers';
 import { formatMUSD, formatToken } from '@/utils/format';
 import { useSuperStake } from '@/hooks/useSuperStake';
 import { useToast } from '@/components/Toast';
@@ -33,7 +34,11 @@ const GET_SUPERSTAKE_POSITION = gql`
   }
 `;
 
-export function SuperStakeUserPanel() {
+interface SuperStakeUserPanelProps {
+  onTransactionComplete?: () => void;
+}
+
+export function SuperStakeUserPanel({ onTransactionComplete }: SuperStakeUserPanelProps) {
   const { address } = useAppKitAccount();
   const [amount, setAmount] = useState('');
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
@@ -68,6 +73,23 @@ export function SuperStakeUserPanel() {
     }
   };
 
+  const handleMaxWithdraw = async () => {
+    if (!position?.active) return;
+    const maxAmount = formatUnits(position.collateralLocked, 18);
+    setAmount(maxAmount);
+    await checkWithdrawApproval(maxAmount);
+  };
+
+  useEffect(() => {
+    if (amount) {
+      if (action === 'deposit') {
+        checkDepositApproval(amount);
+      } else if (action === 'withdraw') {
+        checkWithdrawApproval(amount);
+      }
+    }
+  }, [action]);
+
   const handleApprove = async () => {
     try {
       const txHash = action === 'deposit' ? await approveMETH() : await approveMUSD();
@@ -89,7 +111,10 @@ export function SuperStakeUserPanel() {
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
-        setTimeout(() => refetch(), 3000);
+        setTimeout(() => {
+          refetch();
+          onTransactionComplete?.();
+        }, 3000);
       }
     } catch (error) {
       showToast((error as Error).message || 'Transaction failed', 'error');
@@ -142,7 +167,7 @@ export function SuperStakeUserPanel() {
           />
           {action === 'withdraw' && position?.active && (
             <button 
-              onClick={() => setAmount(formatToken(position.collateralLocked, 18))}
+              onClick={handleMaxWithdraw}
               type="button"
               style={{
                 position: 'absolute',

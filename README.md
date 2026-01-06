@@ -52,6 +52,15 @@ The protocol consists of:
 * **RWA Pool Factory**
   [https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC](https://sepolia.mantlescan.xyz/address/0x189956C062728196452Fe4330544e1d77D0b01BC)
 
+* **Gold Pool**
+  [https://sepolia.mantlescan.xyz/address/0x43bfa0778fc67dab8b26fc73b768c03680a13670](https://sepolia.mantlescan.xyz/address/0x43bfa0778fc67dab8b26fc73b768c03680a13670)
+
+* **Real Estate Pool**
+  [https://sepolia.mantlescan.xyz/address/0xbbfb84101adf968962026abac9006cb62b4e1ace](https://sepolia.mantlescan.xyz/address/0xbbfb84101adf968962026abac9006cb62b4e1ace)
+
+* **Money Market Pool**
+  [https://sepolia.mantlescan.xyz/address/0x880ce950258e591c4360030fc8675d3e33de3aef](https://sepolia.mantlescan.xyz/address/0x880ce950258e591c4360030fc8675d3e33de3aef)
+
 ### Mantle Subgraph & GraphQL
 
 * **Mantle Subgraph Dashboard**
@@ -59,6 +68,11 @@ The protocol consists of:
 
 * **GraphQL Endpoint**
   [https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn](https://subgraph-api.mantle.xyz/api/public/cb8f3ffc-3a59-4f07-9dbc-d92b7b588833/subgraphs/mUSD/0.0.1/gn)
+### Rust Middleware (Proof Submitter to decentralized proofers marketplace [Boundless](https://boundless.network/))
+
+**API Endpoint:** https://mantle-usd.onrender.com
+
+**📚 Swagger UI (Interactive API Docs):** https://mantle-usd.onrender.com/swagger-ui
 
 ### Platform Setup Script
 
@@ -202,7 +216,7 @@ Each RWA pool is configured with:
 * A verifier contract address
 * A policy identifier (program hash / imageId)
 
-The system is ZK-provider agnostic and supports multiple verifiers simultaneously.
+The system is ZK-provider agnostic and supports multiple verifiers/proofers simultaneously.
 
 
 ### Flow: Compliance via Boundless
@@ -246,19 +260,19 @@ flowchart LR
 Each pool:
 
 * Uses its own verifier
-* Can rely on a different ZK backend
+* Can rely on a different ZK backend service
 * Enforces isolated compliance guarantees
 
 
-## Proofer (Off-chain)
+## Proof Submitter (Off-chain)
 
-The **Proofer** is a thin off-chain component responsible for **orchestrating proof requests**.
+The **Proofer Submitter** is a thin off-chain component responsible for **orchestrating proof requests**.
 
 The proofer:
 
 * Does **not** perform ZK computation
 * Does **not** generate proofs locally
-* Delegates all computation to **Boundless**
+* Delegates all computation to **Boundless** (other provider will be added in future)
 * Retrieves finalized proofs and forwards them
 
 This avoids centralized prover infrastructure and improves decentralization.
@@ -357,3 +371,11 @@ sequenceDiagram
 
 ```
 
+## Project Progress & Task Dashboard
+
+Development tasks, milestones, and feature progress are tracked publicly using GitHub Projects:
+
+https://github.com/users/yehia67/projects/4/views/2
+
+## Pitch Deck
+https://docs.google.com/presentation/d/17HaCssYgY5ZTQp_x2ts67K44u-KXvufb3JsnVtgAqBQ

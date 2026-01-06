@@ -3,52 +3,79 @@ use anyhow::Result;
 use axum::response::IntoResponse;
 use axum::{
     extract::{Json, State},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use k256::ecdsa::SigningKey;
 use serde_json::json;
 use std::{env, sync::Arc};
+use tower_http::cors::{Any, CorsLayer};
 use url::Url;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
-mod pinata;
+mod cache;
+mod elf_server;
+mod policy;
 mod proof_submitter;
 mod types;
 mod utils;
 
-use crate::pinata::*;
+use crate::cache::*;
+use crate::elf_server::serve_guest_elf;
+use crate::policy::*;
 use crate::proof_submitter::*;
 use crate::types::*;
 use crate::utils::*;
 
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "mUSD RWA Compliance & Proof Orchestration API",
+        version = "1.0.0",
+        description = "Routing layer that enforces pool-specific compliance policies, orchestrates Boundless proof submissions, and returns verifiable attestations for regulated mUSD ↔ RWA markets."
+    ),
+    paths(
+        root,
+        get_validate_user,
+        post_validate_user_handler,
+        post_compliance_pools_handler,
+        serve_guest_elf_endpoint
+    ),
+    components(schemas(
+        ComplianceRequest,
+        ComplianceOutcome,
+        ProofMetadata,
+        UserResponse,
+        PoolId
+    ))
+)]
+struct ApiDoc;
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load .env file
+    dotenvy::dotenv().ok();
+
     // --- Env vars ---
     let rpc_url = Url::parse(&env::var("RPC_URL")?)?;
     let private_key_hex = env::var("PRIVATE_KEY")?;
     // decode hex into Vec<u8>
     let private_key_bytes = hex::decode(&private_key_hex)?;
 
-    // convert Vec<u8> → [u8; 32]
     let private_key_array: [u8; 32] = private_key_bytes
         .as_slice()
         .try_into()
         .expect("private key must be exactly 32 bytes");
 
-    // now create the SigningKey
     let signing_key = SigningKey::from_bytes((&private_key_array).into())?;
     let signer = PrivateKeySigner::from(signing_key);
-    let mut program_cid: String = String::new();
-    match upload_guest_to_pinata().await {
-        Ok(data) => {
-            println!("File uploaded successfully!");
-            println!("CID: {}", data.cid);
-            program_cid = data.cid;
-        }
-        Err(err) => eprintln!("Error: {}", err),
-    }
-    let guest_program_url =
-        Url::parse(&format!("https://gateway.pinata.cloud/ipfs/{program_cid}"))?;
+
+    println!("✅ Serving guest ELF from API (no Pinata needed)");
+
+    let guest_program_url = env::var("GUEST_ELF_URL")
+        .unwrap_or_else(|_| "https://mantle-usd.onrender.com/guest_elf".to_string());
+    let guest_program_url = Url::parse(&guest_program_url)?;
 
     // --- Axum server ---
     let state = Arc::new(AppState {
@@ -57,36 +84,87 @@ async fn main() -> Result<()> {
         guest_program_url,
     });
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(root))
         .route(
             "/validate_user",
             get(get_validate_user).post(post_validate_user_handler),
         )
-        .with_state(state);
+        .route("/compliance/pools", post(post_compliance_pools_handler))
+        .route("/guest_elf", get(serve_guest_elf_endpoint))
+        .with_state(state.clone())
+        .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let port = env::var("HOST_PORT").expect("HOST_PORT env var must be set");
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+    println!("🚀 Axum running on http://0.0.0.0:{}", port);
+    println!("📦 Guest ELF URL: {}", state.guest_program_url);
+    println!("📚 Swagger UI: http://0.0.0.0:{}/swagger-ui", port);
+    axum::serve(listener, app).await?;
 
-    println!("🚀 Axum running on http://localhost:3000");
-
-    axum::serve(listener, app).await.unwrap();
     Ok(())
 }
 
 // GET /
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "Health",
+    responses(
+        (status = 200, description = "API health", body = serde_json::Value, example = json!({"message": "Welcome to the compliance API!"}))
+    )
+)]
 async fn root() -> Json<serde_json::Value> {
     Json(json!({"message": "Welcome to the compliance API!"}))
 }
 
 // GET /validate_user
+#[utoipa::path(
+    get,
+    path = "/validate_user",
+    tag = "Compliance",
+    responses(
+        (status = 200, description = "Schema information", body = serde_json::Value)
+    )
+)]
 async fn get_validate_user() -> Json<serde_json::Value> {
-    Json(json!({"message": "Send a POST request with { \"is_compliant\": true | false }"}))
+    Json(json!({
+        "message": "POST /validate_user or /compliance/pools with full compliance payload",
+        "schema": {
+            "user": "0x...",
+            "pool_id": "gold | money_market | real_estate",
+            "residency": "ISO country code",
+            "kyc_level": "u8 >= 0",
+            "aml_passed": "bool",
+            "accredited_investor": "bool",
+            "exposure_musd": "current exposure in mUSD",
+            "requested_amount": "trade amount in mUSD",
+            "risk_score": "0-10"
+        }
+    }))
 }
 
 // POST /validate_user
+#[utoipa::path(
+    post,
+    path = "/validate_user",
+    tag = "Compliance",
+    request_body = ComplianceRequest,
+    responses(
+        (status = 200, description = "Compliance evaluation", body = UserResponse),
+        (status = 400, description = "Invalid payload"),
+        (status = 500, description = "Proof generation failure")
+    )
+)]
 async fn post_validate_user_handler(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<UserRequest>,
+    Json(payload): Json<ComplianceRequest>,
 ) -> impl IntoResponse {
     post_validate_user(
         Json(payload),
@@ -97,16 +175,93 @@ async fn post_validate_user_handler(
     .await
 }
 
+#[utoipa::path(
+    post,
+    path = "/compliance/pools",
+    tag = "Compliance",
+    request_body = ComplianceRequest,
+    responses(
+        (status = 200, description = "Pool compliance evaluation", body = UserResponse),
+        (status = 400, description = "Invalid payload"),
+        (status = 500, description = "Proof generation failure")
+    )
+)]
+async fn post_compliance_pools_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<ComplianceRequest>,
+) -> impl IntoResponse {
+    post_validate_user(
+        Json(payload),
+        &state.signer,
+        state.rpc_url.clone(),
+        state.guest_program_url.clone(),
+    )
+    .await
+}
+
+#[utoipa::path(
+    get,
+    path = "/guest_elf",
+    tag = "Assets",
+    responses(
+        (status = 200, description = "Embedded guest ELF", content_type = "application/octet-stream")
+    )
+)]
+async fn serve_guest_elf_endpoint() -> impl IntoResponse {
+    serve_guest_elf().await
+}
+
 async fn post_validate_user(
-    Json(payload): Json<UserRequest>,
+    Json(payload): Json<ComplianceRequest>,
     signer: &PrivateKeySigner,
     rpc_url: Url,
     guest_program_url: Url,
 ) -> Json<UserResponse> {
-    let verified_response =
-        submit_proof_request(&signer, rpc_url, guest_program_url, Json(payload))
-            .await
-            .expect("zk proof failed");
-    println!("Verified: {}", verified_response.proof_fulfillment.str_format);
-    verified_response
+    // Check cache first
+    if let Some(cached_response) = get_cached_response(&payload) {
+        println!("🎯 Cache hit! Returning cached response");
+        return Json(cached_response);
+    }
+
+    let preliminary_outcome = evaluate(&payload);
+    if !preliminary_outcome.allowed {
+        return Json(UserResponse {
+            message: preliminary_outcome.reason.clone(),
+            outcome: preliminary_outcome,
+            proof: None,
+        });
+    }
+
+    let response = match submit_proof_request(
+        &signer,
+        rpc_url,
+        guest_program_url,
+        Json(payload.clone()),
+    )
+    .await
+    {
+        Ok(resp) => {
+            // Cache the successful response
+            cache_response(&payload, &resp);
+            resp
+        }
+        Err(e) => {
+            eprintln!("❌ Proof submission failed: {:?}", e);
+            return Json(UserResponse {
+                message: format!("Proof generation failed: {}", e),
+                outcome: ComplianceOutcome {
+                    user: payload.user.clone(),
+                    pool_id: payload.pool_id,
+                    allowed: false,
+                    reason: format!("System error: {}", e),
+                    max_allocation: 0,
+                    requested_amount: payload.requested_amount,
+                    exposure_musd: payload.exposure_musd,
+                },
+                proof: None,
+            });
+        }
+    };
+
+    response
 }

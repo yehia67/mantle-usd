@@ -30,7 +30,11 @@ const GET_MUSD_POSITIONS = gql`
   }
 `;
 
-export function MUSDPositionPanel() {
+interface MUSDPositionPanelProps {
+  onTransactionComplete?: () => void;
+}
+
+export function MUSDPositionPanel({ onTransactionComplete }: MUSDPositionPanelProps) {
   const { address } = useAppKitAccount();
   const [amount, setAmount] = useState('');
   const [action, setAction] = useState<'lock' | 'unlock'>('lock');
@@ -71,7 +75,10 @@ export function MUSDPositionPanel() {
       if (txHash) {
         showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
         setAmount('');
-        setTimeout(() => refetch(), 3000);
+        setTimeout(() => {
+          refetch();
+          onTransactionComplete?.();
+        }, 3000);
       }
     } catch (error) {
       showToast((error as Error).message || 'Transaction failed', 'error');

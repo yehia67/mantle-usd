@@ -7,6 +7,7 @@ import { useRWAPool } from '@/hooks/useRWAPool';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useToast } from '@/components/Toast';
 import { CONTRACT_ADDRESSES } from '@/config/constants';
+import { ComplianceModal } from '@/components/ComplianceModal';
 
 const GET_POOLS = gql`
   query GetPools {
@@ -23,18 +24,35 @@ const GET_POOLS = gql`
   }
 `;
 
-export function PoolsUserPanel() {
+interface ComplianceProof {
+  seal: string;
+  imageId: string;
+  journalDigest: string;
+  outcome: {
+    allowed: boolean;
+    reason: string;
+    max_allocation: number;
+  };
+}
+
+interface PoolsUserPanelProps {
+  onTransactionComplete?: () => void;
+}
+
+export function PoolsUserPanel({ onTransactionComplete }: PoolsUserPanelProps) {
   const [selectedPool, setSelectedPool] = useState<string | null>(null);
-  const [amount, setAmount] = useState('');
   const [amountMUSD, setAmountMUSD] = useState('');
   const [amountRWA, setAmountRWA] = useState('');
+  const [amount, setAmount] = useState('');
   const [swapDirection, setSwapDirection] = useState<'mUSDtoRWA' | 'RWAtoMUSD'>('mUSDtoRWA');
   const [action, setAction] = useState<'addLiquidity' | 'swap'>('addLiquidity');
+  const [showComplianceModal, setShowComplianceModal] = useState(false);
+  const [, setComplianceProof] = useState<ComplianceProof | null>(null);
   const { data, loading, refetch } = useQuery(GET_POOLS);
   const { address } = useAppKitAccount();
   const { showToast } = useToast();
   
-  const selectedPoolData = data?.rwapools?.find((p: any) => p.id === selectedPool);
+  const selectedPoolData = data?.rwapools?.find((p: unknown) => (p as { id: string }).id === selectedPool);
   const rwaTokenAddress = selectedPoolData?.rwaToken; // Get actual RWA token address from subgraph
   
   const { 
@@ -140,6 +158,52 @@ export function PoolsUserPanel() {
     }
   };
 
+  const handleInitiateSwap = () => {
+    if (!amount) {
+      showToast('Please enter an amount', 'error');
+      return;
+    }
+    // Open compliance modal before swap
+    setShowComplianceModal(true);
+  };
+
+  const handleComplianceSuccess = (proof: ComplianceProof) => {
+    setComplianceProof(proof);
+    // Automatically execute swap after compliance approval
+    executeSwap(proof);
+  };
+
+  const executeSwap = async (proof: ComplianceProof) => {
+    if (!selectedPool || !amount) return;
+    
+    try {
+      const tokenIn = swapDirection === 'mUSDtoRWA' ? CONTRACT_ADDRESSES.mUSD : rwaTokenAddress;
+      const tokenOut = swapDirection === 'mUSDtoRWA' ? rwaTokenAddress : CONTRACT_ADDRESSES.mUSD;
+      
+      const txHash = await swap(
+        tokenIn,
+        tokenOut,
+        amount,
+        '0', // minAmountOut = 0 for testing
+        proof.seal,
+        proof.imageId,
+        proof.journalDigest
+      );
+      
+      if (txHash) {
+        showToast(`Swap successful! Hash: ${txHash.slice(0, 10)}...`, 'success');
+        setAmount('');
+        setComplianceProof(null);
+        setTimeout(() => {
+          refetch();
+          onTransactionComplete?.();
+        }, 3000);
+      }
+    } catch (error) {
+      showToast((error as Error).message || 'Swap failed', 'error');
+    }
+  };
+
   const handleAction = async () => {
     if (!selectedPool) return;
     
@@ -151,37 +215,16 @@ export function PoolsUserPanel() {
           return;
         }
         txHash = await addLiquidity(amountMUSD, amountRWA, '0');
-      } else {
-        if (!amount) {
-          showToast('Please enter an amount', 'error');
-          return;
+        
+        if (txHash) {
+          showToast(`Liquidity added! Hash: ${txHash.slice(0, 10)}...`, 'success');
+          setAmountMUSD('');
+          setAmountRWA('');
+          setTimeout(() => {
+            refetch();
+            onTransactionComplete?.();
+          }, 3000);
         }
-        // Generate placeholder ZK params for testing
-        const placeholderSeal = '0x' + '00'.repeat(32); // 32 bytes of zeros
-        const placeholderImageId = '0xcc8d9e54ea35adb5416485e372c5db1928bb4cc60b93e494ad227c50ef5b1082';
-        const placeholderJournalDigest = '0x' + '00'.repeat(32); // 32 bytes of zeros
-        
-        const tokenIn = swapDirection === 'mUSDtoRWA' ? CONTRACT_ADDRESSES.mUSD : rwaTokenAddress;
-        const tokenOut = swapDirection === 'mUSDtoRWA' ? rwaTokenAddress : CONTRACT_ADDRESSES.mUSD;
-        
-        txHash = await swap(
-          tokenIn,
-          tokenOut,
-          amount,
-          '0', // minAmountOut = 0 for testing
-          placeholderSeal,
-          placeholderImageId,
-          placeholderJournalDigest
-        );
-      }
-      
-      if (txHash) {
-        showToast(`Transaction confirmed! Hash: ${txHash.slice(0, 10)}...`, 'success');
-        setAmount('');
-        setAmountMUSD('');
-        setAmountRWA('');
-        // Wait for subgraph to index the transaction before refetching
-        setTimeout(() => refetch(), 3000);
       }
     } catch (error) {
       showToast((error as Error).message || 'Transaction failed', 'error');
@@ -204,7 +247,7 @@ export function PoolsUserPanel() {
                 <th>Asset</th>
                 <th>mUSD Reserve</th>
                 <th>RWA Reserve</th>
-                <th>Total Liquidity</th>
+                <th>LP Token Supply</th>
                 <th>Volume</th>
                 <th>Swaps</th>
                 <th></th>
@@ -216,7 +259,7 @@ export function PoolsUserPanel() {
                   <td>{pool.assetSymbol}</td>
                   <td>{formatMUSD(pool.reserveMUSD)} mUSD</td>
                   <td>{formatToken(pool.reserveRWA)}</td>
-                  <td>{formatToken(pool.totalLiquidity)}</td>
+                  <td>{formatToken(pool.totalLiquidity)} LP</td>
                   <td>{formatMUSD(pool.totalVolume)} mUSD</td>
                   <td>{pool.totalSwaps}</td>
                   <td>
@@ -334,7 +377,7 @@ export function PoolsUserPanel() {
               ) : (
                 <button 
                   className="btn-primary" 
-                  onClick={handleAction}
+                  onClick={handleInitiateSwap}
                   disabled={!address || swapLoading || !amount}
                 >
                   {swapLoading ? 'Processing...' : 'Swap'}
@@ -343,6 +386,23 @@ export function PoolsUserPanel() {
             </>
           )}
         </div>
+      )}
+
+      {/* Compliance Modal */}
+      {showComplianceModal && selectedPool && (
+        <ComplianceModal
+          isOpen={showComplianceModal}
+          onClose={() => setShowComplianceModal(false)}
+          poolId={
+            selectedPoolData?.assetSymbol === 'Gold' ? 'gold' :
+            selectedPoolData?.assetSymbol === 'Money Market Share' ? 'money_market' :
+            selectedPoolData?.assetSymbol === 'Real Estate Share' ? 'real_estate' :
+            'gold'
+          }
+          assetSymbol={selectedPoolData?.assetSymbol || ''}
+          swapAmount={amount}
+          onComplianceSuccess={handleComplianceSuccess}
+        />
       )}
     </div>
   );

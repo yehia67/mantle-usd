@@ -1,9 +1,7 @@
-// use anyhow::Result;
-use crate::types::{UserRequest, UserResponse};
+use crate::types::{ComplianceOutcome, ComplianceRequest, ProofMetadata, UserResponse};
 use alloy::signers::local::PrivateKeySigner;
 use axum::extract::Json;
-use boundless_market::{request_builder::OfferParams, storage::storage_provider_from_env, Client};
-use methods::GUEST_CODE_FOR_ZK_PROOF_ID;
+use boundless_market::{request_builder::OfferParams, Client};
 use std::time::Duration;
 use url::Url;
 
@@ -11,24 +9,22 @@ pub async fn submit_proof_request(
     signer: &PrivateKeySigner,
     rpc_url: Url,
     guest_program_url: Url,
-    Json(payload): Json<UserRequest>,
+    Json(payload): Json<ComplianceRequest>,
 ) -> anyhow::Result<Json<UserResponse>> {
     let client = Client::builder()
         .with_rpc_url(rpc_url)
         .with_private_key(signer.clone())
-        .with_storage_provider(Some(storage_provider_from_env()?))
         .build()
         .await?;
 
     println!("🚀 Submitting Boundless request");
-    println!("🌍 Program URL = {}", guest_program_url);
-    let stdin = payload.to_guest_stdin();
+    println!("📦 Using guest ELF from: {}", guest_program_url);
+    let stdin = payload.to_guest_stdin()?;
 
     let request = client
         .new_request()
         .with_program_url(guest_program_url)?
         .with_stdin(stdin)
-        .with_image_id(GUEST_CODE_FOR_ZK_PROOF_ID)
         .with_offer(
             OfferParams::builder()
                 .ramp_up_period(30)
@@ -54,20 +50,23 @@ pub async fn submit_proof_request(
         .journal()
         .ok_or_else(|| anyhow::anyhow!("No journal in fulfillment"))?;
 
-    // Decode journal into Vec<u8>
-    let journal_vec: Vec<u8> = risc0_zkvm::serde::from_slice(journal_bytes.as_ref())?;
+    let outcome = ComplianceOutcome::from_journal(journal_bytes.as_ref())?;
+    println!(
+        "Compliance decision: pool={} allowed={} reason={}",
+        outcome.pool_id, outcome.allowed, outcome.reason
+    );
 
-    // Construct Fulfillment struct with human-readable string
-    let fulfillment = crate::types::Fulfillment::new(
-        journal_vec,
+    let proof = ProofMetadata::new(
+        &outcome,
+        journal_bytes.as_ref().to_vec(),
         fulfillment_raw.seal.to_vec(),
         fulfillment_raw.id,
     );
 
-    // Construct the API response
     let response = Json(UserResponse {
-        proof_fulfillment: fulfillment,
-        message: "Compliance proven with zkVM".to_string(),
+        outcome,
+        proof: Some(proof),
+        message: "Compliance evaluation completed via zkVM proof".to_string(),
     });
 
     Ok(response)
